@@ -132,7 +132,13 @@ export default function Dashboard() {
         }
     };
 
-    const filteredProducts = products.filter(p => p.serviceType === activeTab);
+    const filteredProducts = products
+        .filter(p => p.serviceType === activeTab)
+        .sort((a, b) => {
+            const priceA = Number(a.price) || 0;
+            const priceB = Number(b.price) || 0;
+            return priceA - priceB || a.name.localeCompare(b.name);
+        });
 
     const filteredOrders = orders.filter(order => {
         const s = searchQuery.toLowerCase();
