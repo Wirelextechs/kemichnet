@@ -41,7 +41,7 @@ router.post('/init', async (req, res) => {
             user.email,
             parseFloat(product.price),
             paymentReference,
-            'http://localhost:5174/verify' // Client verification page
+            `${process.env.CLIENT_URL || 'http://localhost:5173'}/verify` // Client verification page
         );
 
         res.json({
@@ -102,7 +102,7 @@ router.post('/bulk-init', async (req, res) => {
             user.email,
             totalAmount,
             paymentReference,
-            'http://localhost:5174/verify'
+            `${process.env.CLIENT_URL || 'http://localhost:5173'}/verify`
         );
 
         res.json({
