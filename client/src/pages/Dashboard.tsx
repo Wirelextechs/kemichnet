@@ -259,25 +259,22 @@ export default function Dashboard() {
 
                 {/* VIEW: Single Purchase */}
                 {activeView === 'single' && (
-                    <div className="grid grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
                         {filteredProducts.map(product => (
-                            <div key={product.id} className="group bg-white rounded-xl shadow-sm border border-gray-100 p-3 flex flex-col justify-between hover:shadow-md transition-all duration-300 hover:-translate-y-0.5 relative overflow-hidden h-full">
-                                {/* Decorative Circle - Smaller */}
-                                <div className={`absolute -right-2 -top-2 w-12 h-12 rounded-full ${theme.light} transition-colors opacity-50`} />
-
+                            <div key={product.id} className="group bg-white rounded-xl shadow-sm border border-gray-100 p-3 flex flex-col justify-between hover:shadow-md transition-all duration-300 hover:-translate-y-0.5 relative overflow-hidden">
                                 <div className="relative z-10">
-                                    <span className={`inline-block px-1.5 py-0.5 rounded-full text-[9px] font-bold tracking-wide mb-1 ${theme.light} ${theme.primary.replace('bg-', 'text-')}`}>
-                                        {product.serviceType.replace('_', ' ')}
-                                    </span>
-                                    <h3 className="text-[10px] font-medium text-gray-400 uppercase">{product.name}</h3>
-                                    <div className={`text-xl font-black tracking-tight leading-none mt-0.5 ${theme.primary.replace('bg-', 'text-')}`}>
+                                    <div className="flex justify-between items-start mb-1">
+                                        <span className={`inline-block px-1.5 py-0.5 rounded-full text-[9px] font-bold tracking-wide ${theme.light} ${theme.primary.replace('bg-', 'text-')}`}>
+                                            {product.serviceType.replace('_', ' ')}
+                                        </span>
+                                    </div>
+                                    <div className={`text-xl font-black tracking-tight leading-none ${theme.primary.replace('bg-', 'text-')}`}>
                                         {product.dataAmount}
                                     </div>
+                                    <h3 className="text-[10px] font-medium text-gray-400 uppercase mt-0.5">{product.name}</h3>
                                 </div>
-                                <div className="mt-2 flex items-end justify-between gap-2">
-                                    <div>
-                                        <div className="text-lg font-bold text-gray-900 leading-none">₵{product.price}</div>
-                                    </div>
+                                <div className="mt-3 flex items-center justify-between gap-2">
+                                    <div className="text-base font-bold text-gray-900">₵{product.price}</div>
                                     <button
                                         onClick={() => setSelectedProduct(product)}
                                         className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all shadow-sm active:scale-95 ${theme.primary} ${theme.text} ${theme.hover}`}

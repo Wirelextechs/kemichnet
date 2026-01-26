@@ -16,7 +16,7 @@ app.set('trust proxy', 1); // Required for secure cookies on Vercel
 // Middleware
 app.use(helmet());
 app.use(cors({
-    origin: ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:5175'], // Frontend URL
+    origin: ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:5175', 'http://localhost:5176'], // Frontend URL
     credentials: true
 }));
 app.use(express.json());
@@ -77,7 +77,7 @@ app.get('/health', (req, res) => {
 if (process.env.NODE_ENV !== 'production') {
     app.listen(PORT, () => {
         console.log(`Server running on http://localhost:${PORT}`);
-        startPolling();
+        // startPolling();
     });
 }
 

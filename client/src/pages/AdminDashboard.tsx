@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import api from '../lib/api';
 import { clsx } from 'clsx';
 import { useNavigate } from 'react-router-dom';
@@ -92,6 +92,46 @@ function TabButton({ active, onClick, label }: { active: boolean, onClick: () =>
             {label}
         </button>
     );
+}
+
+// --- Theme Helper ---
+function getTheme(service: string) {
+    if (service && service.includes('MTN')) return {
+        primary: 'bg-[#FFCC00]',
+        text: 'text-black',
+        subtext: 'text-gray-800',
+        border: 'border-[#FFCC00]',
+        light: 'bg-[#FFCC00]/10',
+        badge: 'bg-[#FFCC00] text-black',
+        gradient: 'from-[#FFCC00]/20 to-transparent'
+    };
+    if (service === 'TELECEL') return {
+        primary: 'bg-[#E42320]',
+        text: 'text-white',
+        subtext: 'text-red-100',
+        border: 'border-[#E42320]',
+        light: 'bg-[#E42320]/10',
+        badge: 'bg-[#E42320] text-white',
+        gradient: 'from-[#E42320]/20 to-transparent'
+    };
+    if (service === 'AT') return {
+        primary: 'bg-[#0056B3]',
+        text: 'text-white',
+        subtext: 'text-blue-100',
+        border: 'border-[#0056B3]',
+        light: 'bg-[#0056B3]/10',
+        badge: 'bg-[#0056B3] text-white',
+        gradient: 'from-[#0056B3]/20 to-transparent'
+    };
+    return {
+        primary: 'bg-primary',
+        text: 'text-white',
+        subtext: 'text-gray-200',
+        border: 'border-primary',
+        light: 'bg-primary/10',
+        badge: 'bg-primary text-white',
+        gradient: 'from-primary/20 to-transparent'
+    };
 }
 
 // --- SUB-COMPONENTS ---
@@ -256,7 +296,11 @@ function OrdersTab() {
                                 <td className="p-4 text-gray-500">#{order.id}</td>
                                 <td className="p-4 text-xs">User {order.userId}<br /><span className="text-gray-400">{order.paymentReference}</span></td>
                                 <td className="p-4 font-mono">{order.beneficiaryPhone}</td>
-                                <td className="p-4">{order.serviceType}</td>
+                                <td className="p-4">
+                                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${getTheme(order.serviceType).badge.replace('text-', 'text-xs text-')}`}>
+                                        {order.serviceType.replace('_', ' ')}
+                                    </span>
+                                </td>
                                 <td className="p-4">GHS {order.amount}</td>
                                 <td className="p-4">
                                     <span className={clsx("px-2 py-1 rounded text-xs font-bold",
@@ -284,15 +328,26 @@ function ProductsTab() {
     const [showSync, setShowSync] = useState(false);
     const [wirenetPackages, setWirenetPackages] = useState<any[]>([]);
     const [loadingSync, setLoadingSync] = useState(false);
-
-    // Master Import State
     const [globalProfit, setGlobalProfit] = useState('5');
     const [profitMap, setProfitMap] = useState<Record<string, string>>({});
     const [isImportingAll, setIsImportingAll] = useState(false);
 
+    const formRef = useRef<HTMLDivElement>(null);
+
     const fetchProducts = () => {
-        api.get('/api/products').then(res => setProducts(res.data));
+        api.get('/api/products')
+            .then(res => {
+                if (Array.isArray(res.data)) {
+                    setProducts(res.data);
+                } else {
+                    console.error("API returned non-array:", res.data);
+                    setProducts([]);
+                }
+            })
+            .catch(err => console.error(err));
     };
+
+    useEffect(() => { fetchProducts(); }, []);
 
     const fetchWirenetPackages = async () => {
         setLoadingSync(true);
@@ -354,28 +409,6 @@ function ProductsTab() {
         } catch (error) { alert("Failed to import"); }
     };
 
-    useEffect(() => { fetchProducts(); }, []);
-
-    const handleSubmit = async (e: any) => {
-        e.preventDefault();
-        try {
-            if (editing) {
-                await api.put(`/api/products/${editing.id}`, formData);
-            } else {
-                await api.post('/api/products', formData);
-            }
-            setIsCreating(false);
-            setEditing(null);
-            fetchProducts();
-            setFormData({ name: '', serviceType: 'MTN_UP2U', price: '', dataAmount: '', wirenetPackageId: '', costPrice: '' });
-        } catch (err: any) { alert(`Failed: ${err.response?.data?.message || err.message}`); }
-    };
-
-    const handleDelete = async (id: number) => {
-        if (!confirm('Are you sure you want to delete this package?')) return;
-        try { await api.delete(`/api/products/${id}`); fetchProducts(); } catch (err) { alert('Failed'); }
-    };
-
     const handleImportAll = async () => {
         if (!confirm(`Are you sure you want to import ALL ${wirenetPackages.length} packages?`)) return;
         setIsImportingAll(true);
@@ -401,6 +434,32 @@ function ProductsTab() {
         alert(`Master Import Complete!\nSuccess: ${successCount}\nFailed: ${failCount}\n\nFirst Error: ${firstError}`);
         fetchProducts();
         setShowSync(false);
+    };
+
+    const handleSubmit = async (e: any) => {
+        e.preventDefault();
+        try {
+            if (editing) {
+                await api.put(`/api/products/${editing.id}`, formData);
+            } else {
+                await api.post('/api/products', formData);
+            }
+            setIsCreating(false);
+            setEditing(null);
+            fetchProducts();
+            setFormData({ name: '', serviceType: 'MTN_UP2U', price: '', dataAmount: '', wirenetPackageId: '', costPrice: '' });
+        } catch (err: any) { alert(`Failed: ${err.response?.data?.message || err.message}`); }
+    };
+
+    const handleDelete = async (id: number) => {
+        if (!confirm('Are you sure you want to delete this package?')) return;
+        try { await api.delete(`/api/products/${id}`); fetchProducts(); } catch (err) { alert('Failed'); }
+    };
+
+    const scrollToForm = () => {
+        setTimeout(() => {
+            formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 100);
     };
 
     if (showSync) {
@@ -442,10 +501,10 @@ function ProductsTab() {
 
                 {Object.entries(groupedPackages).map(([provider, pkgs]) => (
                     <div key={provider} className="mb-6">
-                        <h4 className="font-bold text-lg capitalize mb-2 text-primary">{provider} Packages</h4>
-                        <div className="overflow-x-auto border rounded-lg">
-                            <table className="w-full text-sm text-left">
-                                <thead className="bg-gray-50 text-gray-600">
+                        <h4 className="font-bold text-base capitalize mb-2 text-primary">{provider} Packages</h4>
+                        <div className="overflow-x-auto border border-gray-100 rounded-xl">
+                            <table className="w-full text-xs text-left">
+                                <thead className="bg-gray-50 text-gray-500 uppercase tracking-tighter">
                                     <tr className="border-b">
                                         <th className="p-3">ID</th>
                                         <th className="p-3">Package</th>
@@ -454,7 +513,7 @@ function ProductsTab() {
                                         <th className="p-3">Action</th>
                                     </tr>
                                 </thead>
-                                <tbody className="divide-y">
+                                <tbody className="divide-y divide-gray-50">
                                     {(pkgs as any[]).map((pkg: any) => (
                                         <WireNetRow
                                             key={`${provider}-${pkg.id}`}
@@ -481,14 +540,14 @@ function ProductsTab() {
                     <button onClick={fetchWirenetPackages} disabled={loadingSync} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:opacity-90 disabled:opacity-50">
                         {loadingSync ? 'Loading...' : 'Sync WireNet'}
                     </button>
-                    <button onClick={() => { setIsCreating(true); setEditing(null); }} className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:opacity-90">
+                    <button onClick={() => { setIsCreating(true); setEditing(null); scrollToForm(); }} className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:opacity-90">
                         <Plus size={16} /> Add Package
                     </button>
                 </div>
             </div>
 
             {(isCreating || editing) && (
-                <div className="bg-white p-4 rounded-xl border border-gray-200 mb-6 shadow-sm">
+                <div ref={formRef} className="bg-white p-4 rounded-xl border border-gray-200 mb-6 shadow-sm">
                     <h3 className="font-bold mb-4">{editing ? 'Edit Package' : 'New Package'}</h3>
                     <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <input className="border p-2 rounded" placeholder="Package Name" value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} required />
@@ -510,7 +569,7 @@ function ProductsTab() {
                             title={formData.wirenetPackageId ? "Managed by WireNet Sync" : ""}
                         />
                         <input className="border p-2 rounded" placeholder="Data (1000MB)" value={formData.dataAmount} onChange={e => setFormData({ ...formData, dataAmount: e.target.value })} required />
-                        <input className="border p-2 rounded" placeholder="WireNet Package ID (UUID)" type="text" value={formData.wirenetPackageId || ''} onChange={e => setFormData({ ...formData, wirenetPackageId: e.target.value })} />
+
                         <div className="col-span-full flex gap-2 justify-end mt-2">
                             <button type="button" onClick={() => { setIsCreating(false); setEditing(null); }} className="px-4 py-2 bg-gray-100 rounded">Cancel</button>
                             <button type="submit" className="px-4 py-2 bg-black text-white rounded">Save</button>
@@ -519,31 +578,36 @@ function ProductsTab() {
                 </div>
             )}
 
+            {products.length === 0 && !loadingSync && (
+                <div className="p-8 text-center text-gray-500 border border-dashed rounded-xl mt-8">
+                    <p>No packages found.</p>
+                    <p className="text-xs mt-2">Click "Sync WireNet" or "Add Package" to get started.</p>
+                </div>
+            )}
+
             {['MTN_UP2U', 'MTN_EXPRESS', 'AT', 'TELECEL'].map(service => {
                 const serviceProducts = products.filter(p => p.serviceType === service);
                 if (serviceProducts.length === 0) return null;
+                const theme = getTheme(service);
+
                 return (
                     <div key={service} className="mb-8">
                         <div className="flex items-center gap-2 mb-4">
-                            <h3 className="text-lg font-bold text-gray-800">{service.replace('_', ' ')}</h3>
-                            <span className="text-xs bg-gray-100 px-2 py-0.5 rounded text-gray-500">{serviceProducts.length} packages</span>
+                            <h3 className={`text-lg font-black tracking-tight uppercase ${theme.primary.replace('bg-', 'text-')}`}>{service.replace('_', ' ')}</h3>
+                            <span className={`text-[10px] px-2 py-0.5 rounded font-bold ${theme.light} ${theme.primary.replace('bg-', 'text-')}`}>{serviceProducts.length} packages</span>
                         </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-2">
                             {serviceProducts.map(p => (
-                                <div key={p.id} className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex flex-col justify-between">
-                                    <div>
-                                        <div className="flex justify-between items-start">
-                                            <div><h4 className="font-bold">{p.name}</h4></div>
-                                            <div className="text-right">
-                                                <div className="font-bold text-primary">₵{p.price}</div>
-                                                {p.costPrice && <div className="text-xs text-gray-400">Cost: ₵{p.costPrice}</div>}
-                                            </div>
+                                <div key={p.id} className={`bg-white p-1.5 pl-2.5 rounded-lg border-l-4 shadow-sm flex items-center justify-between hover:shadow-md transition-shadow ${theme.border} border-y-gray-100 border-r-gray-100 border-t border-r border-b group`}>
+                                    <div className="flex items-center gap-2 min-w-0">
+                                        <h4 className="font-bold text-xs text-gray-900 truncate max-w-[150px]">{p.name}</h4>
+                                        <div className={`font-black text-xs px-1.5 py-0.5 rounded ${theme.light} ${theme.primary.replace('bg-', 'text-')}`}>
+                                            ₵{p.price}
                                         </div>
-                                        <div className="mt-2 text-sm text-gray-500">{p.dataAmount} Data {p.wirenetPackageId && <span className="text-xs bg-blue-50 text-blue-600 px-1 rounded ml-1">ID: {p.wirenetPackageId}</span>}</div>
                                     </div>
-                                    <div className="flex gap-2 mt-4 pt-4 border-t border-gray-50">
-                                        <button onClick={() => { setEditing(p); setFormData({ name: p.name, price: p.price, dataAmount: p.dataAmount, serviceType: p.serviceType, wirenetPackageId: p.wirenetPackageId, costPrice: p.costPrice }); }} className="flex-1 flex justify-center items-center gap-1 text-sm bg-gray-50 py-2 rounded hover:bg-gray-100"><Edit size={14} /> Edit</button>
-                                        <button onClick={() => handleDelete(p.id)} className="flex-1 flex justify-center items-center gap-1 text-sm bg-red-50 text-red-600 py-2 rounded hover:bg-red-100"><Trash2 size={14} /> Delete</button>
+                                    <div className="flex gap-1">
+                                        <button onClick={() => { setEditing(p); setFormData({ name: p.name, price: p.price, dataAmount: p.dataAmount, serviceType: p.serviceType, wirenetPackageId: p.wirenetPackageId, costPrice: p.costPrice }); scrollToForm(); }} className={`p-1.5 rounded-md transition-colors ${theme.light} ${theme.primary.replace('bg-', 'text-')} hover:opacity-80`}><Edit size={12} /></button>
+                                        <button onClick={() => handleDelete(p.id)} className="p-1.5 rounded-md bg-red-50 text-red-600 hover:bg-red-100 transition-colors"><Trash2 size={12} /></button>
                                     </div>
                                 </div>
                             ))}
