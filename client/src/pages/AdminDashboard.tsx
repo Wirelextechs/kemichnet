@@ -586,7 +586,10 @@ function ProductsTab() {
             )}
 
             {['MTN_UP2U', 'MTN_EXPRESS', 'AT', 'TELECEL'].map(service => {
-                const serviceProducts = products.filter(p => p.serviceType === service);
+                const serviceProducts = products
+                    .filter(p => p.serviceType === service)
+                    .sort((a, b) => parseFloat(String(a.price)) - parseFloat(String(b.price)));
+
                 if (serviceProducts.length === 0) return null;
                 const theme = getTheme(service);
 
