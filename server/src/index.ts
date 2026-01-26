@@ -11,6 +11,8 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+app.set('trust proxy', 1); // Required for secure cookies on Vercel
+
 // Middleware
 app.use(helmet());
 app.use(cors({
@@ -44,7 +46,7 @@ app.use(session({
     saveUninitialized: false,
     cookie: {
         secure: process.env.NODE_ENV === 'production',
-        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax', // Important for cross-site cookies if frontend/backend distinct domains
+        sameSite: 'lax', // Correct for same-origin (Vercel rewrites)
         maxAge: 30 * 24 * 60 * 60 * 1000 // 30 days
     }
 }));
