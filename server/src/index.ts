@@ -26,7 +26,8 @@ import { Pool } from 'pg';
 
 const pgPool = new Pool({
     connectionString: process.env.DATABASE_URL,
-    ssl: { rejectUnauthorized: false }
+    ssl: { rejectUnauthorized: false },
+    max: 10, // Limit connections for serverless
 });
 
 const PgSessionStore = pgSession(session);

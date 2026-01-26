@@ -54,24 +54,42 @@ export const placeWireNetOrder = async (order: WireNetOrderRequest) => {
 
 export const getWireNetPackages = async () => {
     try {
-        console.log("Fetching WireNet packages...");
+        console.log("Fetching WireNet packages from:", WIRENET_BASE_URL);
         const response = await axios.get(`${WIRENET_BASE_URL}/packages`, {
-            headers: { 'Authorization': `Bearer ${WIRENET_API_KEY}` }
+            headers: {
+                'Authorization': `Bearer ${WIRENET_API_KEY}`,
+                'Accept': 'application/json'
+            },
+            timeout: 15000 // 15s timeout
         });
-        console.log("WireNet Packages Response Status:", response.status);
-        console.log("WireNet Packages Response Body:", JSON.stringify(response.data)?.slice(0, 200)); // Log first 200 chars
 
-        const rawData = response.data.data || {};
-        // Flatten into array but keep provider info
-        const allPackages = Object.entries(rawData as Record<string, any[]>).flatMap(([provider, packages]) =>
-            packages.map(p => ({ ...p, provider }))
-        );
+        // Some APIs return data directly, others wrap it in a 'data' field
+        const rawData = response.data.data || response.data || {};
 
-        console.log(`Found ${allPackages.length} packages.`);
+        if (typeof rawData !== 'object' || rawData === null) {
+            console.error("WireNet API returned invalid data format:", typeof rawData);
+            throw new Error("Invalid response format from WireNet");
+        }
+
+        // Handle both: mapped object { provider: [pkgs] } AND flat array [pkgs]
+        let allPackages: any[] = [];
+
+        if (Array.isArray(rawData)) {
+            allPackages = rawData;
+        } else {
+            allPackages = Object.entries(rawData as Record<string, any[]>).flatMap(([provider, packages]) => {
+                if (!Array.isArray(packages)) return [];
+                return packages.map(p => ({ ...p, provider }));
+            });
+        }
+
+        console.log(`Successfully fetched ${allPackages.length} packages.`);
         return allPackages;
     } catch (error: any) {
-        console.error("WireNet Fetch Packages Failed", error.response?.data || error.message);
-        return [];
+        const errorMsg = error.response?.data || error.message;
+        console.error("WireNet Fetch Packages Failed:", JSON.stringify(errorMsg));
+        // Throw error instead of returning [] so the route can return a 500 with context
+        throw new Error(`WireNet API Error: ${typeof errorMsg === 'string' ? errorMsg : JSON.stringify(errorMsg)}`);
     }
 };
 
