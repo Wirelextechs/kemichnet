@@ -146,127 +146,229 @@ export default function Dashboard() {
         return matchesSearch && matchesStatus;
     });
 
+    // ... state ...
+
+    // Brand Colors Helper
+    const getTheme = (service: string) => {
+        if (service.includes('MTN')) return {
+            primary: 'bg-[#FFCC00]',
+            hover: 'hover:bg-[#E6B800]',
+            text: 'text-black',
+            subtext: 'text-gray-800',
+            border: 'border-[#FFCC00]',
+            light: 'bg-[#FFCC00]/10',
+            badge: 'bg-[#FFCC00] text-black',
+            gradient: 'from-[#FFCC00]/20 to-transparent'
+        };
+        if (service === 'TELECEL') return {
+            primary: 'bg-[#E42320]',
+            hover: 'hover:bg-[#C91F1C]',
+            text: 'text-white',
+            subtext: 'text-red-100',
+            border: 'border-[#E42320]',
+            light: 'bg-[#E42320]/10',
+            badge: 'bg-[#E42320] text-white',
+            gradient: 'from-[#E42320]/20 to-transparent'
+        };
+        if (service === 'AT') return {
+            primary: 'bg-[#0056B3]', // Blue for AT to distinguish
+            hover: 'hover:bg-[#004494]',
+            text: 'text-white',
+            subtext: 'text-blue-100',
+            border: 'border-[#0056B3]',
+            light: 'bg-[#0056B3]/10',
+            badge: 'bg-[#0056B3] text-white',
+            gradient: 'from-[#0056B3]/20 to-transparent'
+        };
+        return {
+            primary: 'bg-primary',
+            hover: 'hover:bg-primary/90',
+            text: 'text-white',
+            subtext: 'text-gray-200',
+            border: 'border-primary',
+            light: 'bg-primary/10',
+            badge: 'bg-primary text-white',
+            gradient: 'from-primary/20 to-transparent'
+        }; // Default
+    };
+
+    const theme = getTheme(activeTab);
+
     return (
-        <div className="min-h-screen bg-gray-50 flex flex-col">
-            <header className="bg-white shadow-sm p-4 sticky top-0 z-10">
+        <div className={`min-h-screen bg-gray-50 flex flex-col transition-colors duration-500`}>
+            {/* Header */}
+            <header className="bg-white shadow-sm p-4 sticky top-0 z-10 transition-colors">
                 <div className="max-w-7xl mx-auto flex justify-between items-center">
-                    <h1 className="text-xl font-bold text-primary">KemichNet</h1>
-                    <button onClick={() => { api.post('/auth/logout'); navigate('/login'); }} className="text-sm text-red-500">Logout</button>
+                    <div className="flex items-center gap-2">
+                        {/* Dynamic Logo/Text Color */}
+                        <h1 className={`text-2xl font-black tracking-tighter ${theme.primary.replace('bg-', 'text-')}`}>
+                            KemichNet
+                        </h1>
+                    </div>
+                    <button onClick={() => { api.post('/auth/logout'); navigate('/login'); }} className="text-sm font-medium text-gray-500 hover:text-red-500 transition-colors">Logout</button>
                 </div>
             </header>
 
-            <main className="flex-1 max-w-7xl mx-auto w-full p-4 md:p-6 space-y-8">
+            {/* Dynamic Background Gradient */}
+            <div className={`fixed inset-0 pointer-events-none bg-gradient-to-b ${theme.gradient} opacity-50 z-0`} />
+
+            <main className="flex-1 max-w-7xl mx-auto w-full p-4 md:p-6 space-y-8 z-1 relative">
+
                 {/* View Selection (Tabs) */}
-                <div className="flex bg-gray-100 p-1 rounded-xl mb-6 w-fit">
-                    <button
-                        onClick={() => setActiveView('single')}
-                        className={clsx("px-4 py-2 text-sm font-medium rounded-lg transition-all", activeView === 'single' ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700")}
-                    >
-                        Single Purchase
-                    </button>
-                    <button
-                        onClick={() => setActiveView('bulk')}
-                        className={clsx("px-4 py-2 text-sm font-medium rounded-lg transition-all", activeView === 'bulk' ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700")}
-                    >
-                        Bulk Purchase
-                    </button>
-                    <button
-                        onClick={() => setActiveView('history')}
-                        className={clsx("px-4 py-2 text-sm font-medium rounded-lg transition-all", activeView === 'history' ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700")}
-                    >
-                        Order History
-                    </button>
+                <div className="flex bg-white/80 backdrop-blur-sm p-1.5 rounded-2xl shadow-sm border border-gray-100 mb-6 w-fit mx-auto md:mx-0">
+                    {['single', 'bulk', 'history'].map((view) => (
+                        <button
+                            key={view}
+                            onClick={() => setActiveView(view as any)}
+                            className={clsx(
+                                "px-6 py-2.5 text-sm font-bold rounded-xl transition-all duration-300",
+                                activeView === view
+                                    ? `${theme.primary} ${theme.text} shadow-lg shadow-${theme.primary}/20`
+                                    : "text-gray-500 hover:text-gray-900 hover:bg-gray-50"
+                            )}
+                        >
+                            {view.charAt(0).toUpperCase() + view.slice(1)} {view === 'single' ? 'Bundle' : view === 'bulk' ? 'Purchase' : ''}
+                        </button>
+                    ))}
                 </div>
 
                 {/* Service Selection (Only for Buying Views) */}
                 {activeView !== 'history' && (
-                    <div className="flex gap-2 overflow-x-auto pb-2">
-                        {['MTN_UP2U', 'MTN_EXPRESS', 'AT', 'TELECEL'].map(service => (
-                            <button
-                                key={service}
-                                onClick={() => setActiveTab(service)}
-                                className={clsx(
-                                    "px-6 py-2 rounded-full whitespace-nowrap text-sm font-medium transition-colors",
-                                    activeTab === service ? "bg-primary text-white" : "bg-white text-gray-600 hover:bg-gray-100"
-                                )}
-                            >
-                                {service.replace('_', ' ')}
-                            </button>
-                        ))}
+                    <div className="flex gap-4 overflow-x-auto pb-4 no-scrollbar">
+                        {['MTN_UP2U', 'MTN_EXPRESS', 'AT', 'TELECEL'].map(service => {
+                            const btnTheme = getTheme(service);
+                            const isActive = activeTab === service;
+                            return (
+                                <button
+                                    key={service}
+                                    onClick={() => setActiveTab(service)}
+                                    className={clsx(
+                                        "px-6 py-4 rounded-2xl whitespace-nowrap text-sm font-bold transition-all duration-300 border-2 flex items-center gap-2 min-w-[140px] justify-center",
+                                        isActive
+                                            ? `${btnTheme.primary} ${btnTheme.text} ${btnTheme.border} shadow-xl scale-105`
+                                            : "bg-white text-gray-400 border-gray-100 hover:border-gray-200 hover:bg-gray-50"
+                                    )}
+                                >
+                                    <span className={clsx("w-3 h-3 rounded-full", activeTab === service ? "bg-white" : btnTheme.primary)} />
+                                    {service.replace('_', ' ')}
+                                </button>
+                            );
+                        })}
                     </div>
                 )}
 
                 {/* VIEW: Single Purchase */}
                 {activeView === 'single' && (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <div className="grid grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-3">
                         {filteredProducts.map(product => (
-                            <div key={product.id} className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 flex flex-col justify-between hover:shadow-md transition-shadow">
-                                <div>
-                                    <h3 className="text-lg font-semibold text-gray-900">{product.name}</h3>
-                                    <div className="text-3xl font-bold text-primary mt-2">{product.dataAmount}</div>
+                            <div key={product.id} className="group bg-white rounded-xl shadow-sm border border-gray-100 p-3 flex flex-col justify-between hover:shadow-md transition-all duration-300 hover:-translate-y-0.5 relative overflow-hidden h-full">
+                                {/* Decorative Circle - Smaller */}
+                                <div className={`absolute -right-2 -top-2 w-12 h-12 rounded-full ${theme.light} transition-colors opacity-50`} />
+
+                                <div className="relative z-10">
+                                    <span className={`inline-block px-1.5 py-0.5 rounded-full text-[9px] font-bold tracking-wide mb-1 ${theme.light} ${theme.primary.replace('bg-', 'text-')}`}>
+                                        {product.serviceType.replace('_', ' ')}
+                                    </span>
+                                    <h3 className="text-[10px] font-medium text-gray-400 uppercase">{product.name}</h3>
+                                    <div className={`text-xl font-black tracking-tight leading-none mt-0.5 ${theme.primary.replace('bg-', 'text-')}`}>
+                                        {product.dataAmount}
+                                    </div>
                                 </div>
-                                <div className="mt-6 flex items-center justify-between">
-                                    <span className="text-xl font-bold">GHS {product.price}</span>
+                                <div className="mt-2 flex items-end justify-between gap-2">
+                                    <div>
+                                        <div className="text-lg font-bold text-gray-900 leading-none">₵{product.price}</div>
+                                    </div>
                                     <button
                                         onClick={() => setSelectedProduct(product)}
-                                        className="px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800"
+                                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all shadow-sm active:scale-95 ${theme.primary} ${theme.text} ${theme.hover}`}
                                     >
-                                        Buy Now
+                                        Buy
                                     </button>
                                 </div>
                             </div>
                         ))}
-                        {filteredProducts.length === 0 && <div className="col-span-full text-center py-10 text-gray-400">No products available in this category.</div>}
+                        {filteredProducts.length === 0 && (
+                            <div className="col-span-full flex flex-col items-center justify-center py-20 text-gray-400">
+                                <div className={`w-16 h-16 rounded-full ${theme.light} mb-4 flex items-center justify-center`}>
+                                    <span className="text-2xl">📦</span>
+                                </div>
+                                <p>No products available for {activeTab.replace('_', ' ')}</p>
+                            </div>
+                        )}
                     </div>
                 )}
 
                 {/* VIEW: Bulk Purchase */}
                 {activeView === 'bulk' && (
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-                            <h3 className="font-bold mb-2">Paste Numbers</h3>
-                            <p className="text-sm text-gray-500 mb-4">Format: <code className="bg-gray-100 px-1 rounded">Phone Amount</code> (e.g. 0551234567 1)</p>
+                        <div className="bg-white p-8 rounded-3xl shadow-lg border border-gray-100 relative overflow-hidden">
+                            <div className={`absolute top-0 left-0 w-full h-1 ${theme.primary}`} />
+                            <h3 className="font-bold text-lg mb-2 flex items-center gap-2">
+                                <span className={`p-2 rounded-lg ${theme.light} ${theme.primary.replace('bg-', 'text-')}`}>📝</span>
+                                Paste Numbers
+                            </h3>
+                            <p className="text-sm text-gray-500 mb-4">Format: <code className="bg-gray-100 px-2 py-0.5 rounded text-gray-800 font-mono">0551234567 1</code> (Phone Space Amount)</p>
                             <textarea
                                 value={bulkInput}
                                 onChange={(e) => setBulkInput(e.target.value)}
-                                className="w-full h-64 border rounded-lg p-3 font-mono text-sm focus:ring-2 focus:ring-primary outline-none"
-                                placeholder={`0551234567 1\n0240000000 2.5`}
+                                className={`w-full h-80 border-2 border-gray-100 rounded-2xl p-4 font-mono text-sm focus:border-${theme.primary.replace('bg-', '')} focus:ring-4 focus:ring-${theme.primary.replace('bg-', '')}/10 outline-none transition-all resize-none`}
+                                placeholder={`0551234567 1\n0240000000 2.5\n0509999999 5`}
                             />
-                            <button onClick={processBulkInput} className="mt-4 w-full py-2 bg-gray-900 text-white rounded-lg">Process List</button>
+                            <button onClick={processBulkInput} className={`mt-4 w-full py-4 rounded-xl font-bold transition-all shadow-xl active:scale-95 ${theme.primary} ${theme.text} ${theme.hover}`}>
+                                Process List
+                            </button>
                         </div>
 
-                        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex flex-col">
-                            <h3 className="font-bold mb-4">Order Summary</h3>
-                            <div className="flex-1 overflow-y-auto max-h-64 border rounded-lg">
-                                <table className="w-full text-sm text-left">
-                                    <thead className="bg-gray-50 sticky top-0">
+                        <div className="bg-white p-8 rounded-3xl shadow-lg border border-gray-100 flex flex-col relative overflow-hidden">
+                            <div className={`absolute top-0 left-0 w-full h-1 ${theme.primary}`} />
+                            <h3 className="font-bold text-lg mb-6 flex items-center gap-2">
+                                <span className={`p-2 rounded-lg ${theme.light} ${theme.primary.replace('bg-', 'text-')}`}>🧾</span>
+                                Order Summary
+                            </h3>
+                            <div className="flex-1 overflow-y-auto max-h-[400px] border border-gray-100 rounded-2xl bg-gray-50/50 p-2">
+                                <table className="w-full text-sm text-left border-collapse">
+                                    <thead className="bg-gray-100/50 sticky top-0 text-gray-500">
                                         <tr>
-                                            <th className="p-2">Phone</th>
-                                            <th className="p-2">Data</th>
-                                            <th className="p-2">Status</th>
+                                            <th className="p-3 rounded-tl-lg">Phone</th>
+                                            <th className="p-3">Data</th>
+                                            <th className="p-3 rounded-tr-lg">Status</th>
                                         </tr>
                                     </thead>
-                                    <tbody>
+                                    <tbody className="divide-y divide-gray-100">
                                         {bulkOrders.map((o, i) => (
-                                            <tr key={i} className={o.valid ? "bg-white" : "bg-red-50"}>
-                                                <td className="p-2">{o.phone}</td>
-                                                <td className="p-2">{o.amount}GB</td>
-                                                <td className="p-2 text-xs">
-                                                    {o.valid ? <span className="text-green-600 font-bold">OK (₵{o.price})</span> : <span className="text-red-600">{o.error}</span>}
+                                            <tr key={i} className={o.valid ? "bg-white" : "bg-red-50/50"}>
+                                                <td className="p-3 font-mono text-gray-700">{o.phone}</td>
+                                                <td className="p-3 font-bold">{o.amount}GB</td>
+                                                <td className="p-3 text-xs">
+                                                    {o.valid
+                                                        ? <span className="text-green-600 font-bold bg-green-100 px-2 py-1 rounded-full">OK (₵{o.price})</span>
+                                                        : <span className="text-red-500 font-medium">{o.error}</span>}
                                                 </td>
                                             </tr>
                                         ))}
-                                        {bulkOrders.length === 0 && <tr><td colSpan={3} className="p-4 text-center text-gray-400">No data processed</td></tr>}
+                                        {bulkOrders.length === 0 && <tr><td colSpan={3} className="p-10 text-center text-gray-400">Paste numbers to preview</td></tr>}
                                     </tbody>
                                 </table>
                             </div>
 
-                            <div className="mt-4 pt-4 border-t flex justify-between items-center">
-                                <div>
-                                    <div className="text-sm text-gray-500">Valid Orders: {bulkOrders.filter(o => o.valid).length}</div>
-                                    <div className="text-xl font-bold">Total: GHS {bulkOrders.filter(o => o.valid).reduce((sum, o) => sum + parseFloat(o.price as any), 0).toFixed(2)}</div>
+                            <div className="mt-6 pt-6 border-t border-gray-100">
+                                <div className="flex justify-between items-end mb-4">
+                                    <div>
+                                        <div className="text-sm text-gray-500 mb-1">Total Valid Orders</div>
+                                        <div className="text-3xl font-black text-gray-900">{bulkOrders.filter(o => o.valid).length}</div>
+                                    </div>
+                                    <div className="text-right">
+                                        <div className="text-sm text-gray-500 mb-1">Total Cost</div>
+                                        <div className="text-3xl font-black text-gray-900">₵{bulkOrders.filter(o => o.valid).reduce((sum, o) => sum + parseFloat(o.price as any), 0).toFixed(2)}</div>
+                                    </div>
                                 </div>
-                                <button onClick={handleBulkBuy} disabled={bulkOrders.filter(o => o.valid).length === 0} className="px-6 py-3 bg-primary text-white rounded-lg hover:opacity-90 disabled:opacity-50">Pay Bulk</button>
+                                <button
+                                    onClick={handleBulkBuy}
+                                    disabled={bulkOrders.filter(o => o.valid).length === 0}
+                                    className={`w-full py-4 rounded-xl font-bold transition-all shadow-xl active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed ${theme.primary} ${theme.text} ${theme.hover}`}
+                                >
+                                    Proceed to Payment
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -275,93 +377,117 @@ export default function Dashboard() {
                 {/* VIEW: History */}
                 {activeView === 'history' && (
                     <section>
-                        <div className="flex flex-col md:flex-row justify-between items-center mb-4 gap-4">
-                            <h2 className="text-lg font-bold">Recent Orders</h2>
-                            <div className="flex gap-2 w-full md:w-auto">
-                                <input
-                                    type="text"
-                                    placeholder="Search orders..."
-                                    value={searchQuery}
-                                    onChange={(e) => setSearchQuery(e.target.value)}
-                                    className="border rounded-lg px-3 py-2 text-sm w-full md:w-64 focus:ring-2 focus:ring-primary outline-none"
-                                />
-                                <select
-                                    value={statusFilter}
-                                    onChange={(e) => setStatusFilter(e.target.value)}
-                                    className="border rounded-lg px-3 py-2 text-sm bg-white focus:ring-2 focus:ring-primary outline-none"
-                                >
-                                    <option value="ALL">All Status</option>
-                                    <option value="PAID">Paid</option>
-                                    <option value="PROCESSING">Processing</option>
-                                    <option value="FULFILLED">Fulfilled</option>
-                                    <option value="FAILED">Failed</option>
-                                </select>
+                        <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-6 mb-6">
+                            <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+                                <h2 className="text-xl font-bold">Order History</h2>
+                                <div className="flex gap-2 w-full md:w-auto">
+                                    <input
+                                        type="text"
+                                        placeholder="Search..."
+                                        value={searchQuery}
+                                        onChange={(e) => setSearchQuery(e.target.value)}
+                                        className="border-gray-200 border rounded-xl px-4 py-2 text-sm w-full md:w-64 focus:ring-2 focus:ring-gray-200 outline-none bg-gray-50"
+                                    />
+                                    <select
+                                        value={statusFilter}
+                                        onChange={(e) => setStatusFilter(e.target.value)}
+                                        className="border-gray-200 border rounded-xl px-3 py-2 text-sm bg-gray-50 focus:ring-2 focus:ring-gray-200 outline-none"
+                                    >
+                                        <option value="ALL">All Status</option>
+                                        <option value="PAID">Paid</option>
+                                        <option value="PROCESSING">Processing</option>
+                                        <option value="FULFILLED">Fulfilled</option>
+                                        <option value="FAILED">Failed</option>
+                                    </select>
+                                </div>
                             </div>
                         </div>
-                        <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+
+                        <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
                             <table className="w-full text-sm text-left">
-                                <thead className="bg-gray-50 text-gray-600">
+                                <thead className="bg-gray-50/80 text-gray-400 uppercase text-xs tracking-wider">
                                     <tr>
-                                        <th className="p-4">Service</th>
-                                        <th className="p-4">Number</th>
-                                        <th className="p-4">Amount</th>
-                                        <th className="p-4">Status</th>
-                                        <th className="p-4">Date</th>
+                                        <th className="p-6 font-medium">Service</th>
+                                        <th className="p-6 font-medium">Number</th>
+                                        <th className="p-6 font-medium">Amount</th>
+                                        <th className="p-6 font-medium">Status</th>
+                                        <th className="p-6 font-medium">Date</th>
                                     </tr>
                                 </thead>
-                                <tbody className="divide-y divide-gray-100">
-                                    {filteredOrders.map(order => (
-                                        <tr key={order.id}>
-                                            <td className="p-4 font-medium">{order.serviceType}</td>
-                                            <td className="p-4">{order.beneficiaryPhone}</td>
-                                            <td className="p-4">GHS {order.amount}</td>
-                                            <td className="p-4">
-                                                <span className={clsx(
-                                                    "px-2 py-1 rounded text-xs font-bold",
-                                                    order.status === 'FULFILLED' ? "bg-green-100 text-green-700" :
-                                                        order.status === 'FAILED' ? "bg-red-100 text-red-700" :
-                                                            "bg-yellow-100 text-yellow-700"
-                                                )}>{order.status}</span>
-                                            </td>
-                                            <td className="p-4 text-gray-500">{new Date(order.createdAt).toLocaleString()}</td>
-                                        </tr>
-                                    ))}
+                                <tbody className="divide-y divide-gray-50">
+                                    {filteredOrders.map(order => {
+                                        // Row specific theme? Maybe overkill. Just simple text.
+                                        const statusColor = order.status === 'FULFILLED' ? 'bg-green-100 text-green-700' :
+                                            order.status === 'FAILED' ? 'bg-red-100 text-red-700' :
+                                                order.status === 'PAID' ? 'bg-blue-100 text-blue-700' : 'bg-yellow-100 text-yellow-700';
+
+                                        return (
+                                            <tr key={order.id} className="hover:bg-gray-50 transition-colors">
+                                                <td className="p-6 font-bold text-gray-900">{order.serviceType.replace('_', ' ')}</td>
+                                                <td className="p-6 font-mono text-gray-600">{order.beneficiaryPhone}</td>
+                                                <td className="p-6 font-medium">₵{order.amount}</td>
+                                                <td className="p-6">
+                                                    <span className={`px-3 py-1 rounded-full text-xs font-bold ${statusColor}`}>
+                                                        {order.status}
+                                                    </span>
+                                                </td>
+                                                <td className="p-6 text-gray-400">{new Date(order.createdAt).toLocaleDateString()} <span className="text-xs">{new Date(order.createdAt).toLocaleTimeString()}</span></td>
+                                            </tr>
+                                        )
+                                    })}
                                 </tbody>
                             </table>
+                            {filteredOrders.length === 0 && <div className="p-10 text-center text-gray-400">No orders found</div>}
                         </div>
                     </section>
                 )}
             </main >
 
-            {/* Purchase Modal */}
-            {
-                selectedProduct && (
-                    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-                        <div className="bg-white max-w-sm w-full rounded-2xl p-6 space-y-4">
-                            <h3 className="text-xl font-bold">Confirm Purchase</h3>
-                            <p className="text-gray-600">You are buying <span className="font-bold">{selectedProduct.name}</span> for <span className="font-bold">{selectedProduct.price} GHS</span></p>
+            {/* Purchase Modal - Themed */}
+            {selectedProduct && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                    <div className="bg-white max-w-sm w-full rounded-3xl p-8 space-y-6 shadow-2xl relative overflow-hidden">
+                        <div className={`absolute top-0 left-0 w-full h-2 ${theme.primary}`} />
 
-                            <div>
-                                <label className="block text-sm font-medium mb-1">Beneficiary Number</label>
-                                <input
-                                    type="tel"
-                                    placeholder="05XXXXXXXX"
-                                    value={beneficiary}
-                                    onChange={(e) => setBeneficiary(e.target.value)}
-                                    className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-primary outline-none"
-                                />
+                        <div className="text-center">
+                            <div className={`w-16 h-16 mx-auto rounded-full ${theme.light} mb-4 flex items-center justify-center`}>
+                                <span className="text-2xl">📱</span>
                             </div>
+                            <h3 className="text-2xl font-black text-gray-900">Confirm Purchase</h3>
+                            <p className="text-gray-500 mt-2">Buying <span className={`font-bold ${theme.primary.replace('bg-', 'text-')}`}>{selectedProduct.name}</span></p>
+                        </div>
 
-                            <div className="flex gap-3 pt-2">
-                                <button onClick={() => setSelectedProduct(null)} className="flex-1 py-3 bg-gray-100 rounded-lg hover:bg-gray-200">Cancel</button>
-                                <button onClick={handleBuy} disabled={loading} className="flex-1 py-3 bg-primary text-white rounded-lg hover:opacity-90 disabled:opacity-50">
-                                    {loading ? 'Processing...' : 'Pay'}
-                                </button>
+                        <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100">
+                            <div className="flex justify-between items-center mb-1">
+                                <span className="text-sm text-gray-500">Price</span>
+                                <span className="text-xl font-bold">₵{selectedProduct.price}</span>
+                            </div>
+                            <div className="flex justify-between items-center">
+                                <span className="text-sm text-gray-500">Data</span>
+                                <span className="text-sm font-bold">{selectedProduct.dataAmount}</span>
                             </div>
                         </div>
+
+                        <div>
+                            <label className="block text-sm font-bold text-gray-700 mb-2 ml-1">Beneficiary Number</label>
+                            <input
+                                type="tel"
+                                placeholder="05XXXXXXXX"
+                                value={beneficiary}
+                                onChange={(e) => setBeneficiary(e.target.value)}
+                                className={`w-full p-4 border-2 border-gray-100 rounded-xl outline-none font-mono text-lg transition-colors focus:border-${theme.primary.replace('bg-', '')} focus:ring-4 focus:ring-${theme.primary.replace('bg-', '')}/10`}
+                            />
+                        </div>
+
+                        <div className="flex gap-3 pt-2">
+                            <button onClick={() => setSelectedProduct(null)} className="flex-1 py-4 bg-gray-100 rounded-xl font-bold hover:bg-gray-200 text-gray-600 transition-colors">Cancel</button>
+                            <button onClick={handleBuy} disabled={loading} className={`flex-1 py-4 rounded-xl font-bold shadow-lg ${theme.primary} ${theme.text} ${theme.hover} disabled:opacity-50`}>
+                                {loading ? 'Processing...' : 'Pay Now'}
+                            </button>
+                        </div>
                     </div>
-                )
-            }
+                </div>
+            )}
         </div >
     );
 }
