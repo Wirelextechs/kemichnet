@@ -39,3 +39,9 @@ export const orders = pgTable('orders', {
     createdAt: timestamp('created_at').defaultNow().notNull(),
     updatedAt: timestamp('updated_at').defaultNow(),
 });
+
+export const session = pgTable('session', {
+    sid: text('sid').primaryKey(),
+    sess: text('sess').notNull(), // JSON data
+    expire: timestamp('expire').notNull(),
+});

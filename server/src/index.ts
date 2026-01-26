@@ -21,13 +21,30 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Session
+import pgSession from 'connect-pg-simple';
+import { Pool } from 'pg';
+
+const pgPool = new Pool({
+    connectionString: process.env.DATABASE_URL,
+    ssl: { rejectUnauthorized: false }
+});
+
+const PgSessionStore = pgSession(session);
+
+// Session
 app.use(session({
+    store: new PgSessionStore({
+        pool: pgPool,
+        tableName: 'session',
+        createTableIfMissing: true
+    }),
     secret: process.env.SESSION_SECRET || 'dev_secret',
     resave: false,
     saveUninitialized: false,
     cookie: {
         secure: process.env.NODE_ENV === 'production',
-        maxAge: 24 * 60 * 60 * 1000 // 24 hours
+        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax', // Important for cross-site cookies if frontend/backend distinct domains
+        maxAge: 30 * 24 * 60 * 60 * 1000 // 30 days
     }
 }));
 
