@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import api from '../lib/api';
 import { motion } from 'framer-motion';
-import { Wifi, ArrowRight, Lock, UserPlus } from 'lucide-react';
+import { Wifi, Lock, UserPlus } from 'lucide-react';
 
 const SignalWave = ({ delay }: { delay: number }) => (
     <motion.div
