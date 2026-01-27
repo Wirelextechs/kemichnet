@@ -250,16 +250,37 @@ function OrdersTab() {
     const [orders, setOrders] = useState<Order[]>([]);
     const [statusFilter, setStatusFilter] = useState('ALL');
     const [loading, setLoading] = useState(true);
+    const [updatingId, setUpdatingId] = useState<number | null>(null);
 
-    useEffect(() => {
+    const fetchOrders = () => {
         api.get('/api/orders/all-orders')
             .then(res => setOrders(res.data))
             .finally(() => setLoading(false));
+    };
+
+    useEffect(() => {
+        fetchOrders();
     }, []);
+
+    const handleStatusChange = async (orderId: number, newStatus: string) => {
+        setUpdatingId(orderId);
+        try {
+            await api.patch(`/api/orders/update-status/${orderId}`, { status: newStatus });
+            // Update local state
+            setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: newStatus } : o));
+        } catch (error) {
+            console.error('Failed to update status', error);
+            alert('Failed to update order status');
+        } finally {
+            setUpdatingId(null);
+        }
+    };
 
     const filteredOrders = orders.filter(order => statusFilter === 'ALL' || order.status === statusFilter);
 
     if (loading) return <div>Loading orders...</div>;
+
+    const statusOptions = ['PENDING_PAYMENT', 'PAID', 'PROCESSING', 'FULFILLED', 'FAILED'];
 
     return (
         <div>
@@ -303,10 +324,23 @@ function OrdersTab() {
                                 </td>
                                 <td className="p-4">GHS {order.amount}</td>
                                 <td className="p-4">
-                                    <span className={clsx("px-2 py-1 rounded text-xs font-bold",
-                                        order.status === 'FULFILLED' ? "bg-green-100 text-green-700" :
-                                            order.status === 'FAILED' ? "bg-red-100 text-red-700" : "bg-yellow-100 text-yellow-700"
-                                    )}>{order.status}</span>
+                                    <select
+                                        value={order.status}
+                                        onChange={(e) => handleStatusChange(order.id, e.target.value)}
+                                        disabled={updatingId === order.id}
+                                        className={clsx(
+                                            "px-2 py-1 rounded text-xs font-bold border-0 cursor-pointer",
+                                            order.status === 'FULFILLED' ? "bg-green-100 text-green-700" :
+                                                order.status === 'FAILED' ? "bg-red-100 text-red-700" :
+                                                    order.status === 'PAID' ? "bg-blue-100 text-blue-700" :
+                                                        "bg-yellow-100 text-yellow-700",
+                                            updatingId === order.id && "opacity-50"
+                                        )}
+                                    >
+                                        {statusOptions.map(s => (
+                                            <option key={s} value={s}>{s}</option>
+                                        ))}
+                                    </select>
                                 </td>
                                 <td className="p-4 text-gray-500">{new Date(order.createdAt).toLocaleString()}</td>
                             </tr>

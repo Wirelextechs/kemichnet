@@ -217,4 +217,44 @@ router.get('/all-orders', async (req, res) => {
     }
 });
 
+// Admin: Update Order Status
+router.patch('/update-status/:orderId', async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Login required" });
+    const user = req.user as any;
+
+    if (user.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+    }
+
+    const { orderId } = req.params;
+    const { status } = req.body;
+
+    const validStatuses = ['PENDING_PAYMENT', 'PAID', 'PROCESSING', 'FULFILLED', 'FAILED'];
+    if (!validStatuses.includes(status)) {
+        return res.status(400).json({ message: `Invalid status. Must be one of: ${validStatuses.join(', ')}` });
+    }
+
+    try {
+        const orderRes = await db.select().from(orders).where(eq(orders.id, parseInt(orderId))).limit(1);
+        const order = orderRes[0];
+
+        if (!order) {
+            return res.status(404).json({ message: "Order not found" });
+        }
+
+        const oldStatus = order.status;
+
+        await db.update(orders)
+            .set({ status, updatedAt: new Date() })
+            .where(eq(orders.id, parseInt(orderId)));
+
+        console.log(`Admin ${user.email} updated order ${orderId}: ${oldStatus} -> ${status}`);
+
+        res.json({ message: "Order status updated", orderId, oldStatus, newStatus: status });
+    } catch (error) {
+        console.error("Update Status Error", error);
+        res.status(500).json({ message: "Server error" });
+    }
+});
+
 export default router;
