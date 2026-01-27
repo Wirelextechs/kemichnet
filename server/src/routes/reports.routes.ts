@@ -60,7 +60,7 @@ router.get('/stats', ensureAdmin, async (req, res) => {
             total: sql<string>`sum(${orders.amount})`
         }).from(orders).where(and(
             dateCondition,
-            sql`${orders.status} IN ('PAID', 'FULFILLED')`
+            sql`${orders.status} IN ('PAID', 'FULFILLED', 'PROCESSING')`
         ));
 
         // Successful Order Counts (PAID, FULFILLED, or PROCESSING)
@@ -107,7 +107,7 @@ router.get('/sales-chart', ensureAdmin, async (req, res) => {
             FROM orders
             WHERE created_at >= ${startDate.toISOString()} 
               AND created_at <= ${endDate.toISOString()}
-              AND status IN ('PAID', 'FULFILLED')
+              AND status IN ('PAID', 'FULFILLED', 'PROCESSING')
             GROUP BY time_point
             ORDER BY time_point ASC
         `);
@@ -138,7 +138,7 @@ router.get('/top-products', ensureAdmin, async (req, res) => {
              FROM orders
              WHERE created_at >= ${startDate.toISOString()} 
                AND created_at <= ${endDate.toISOString()}
-               AND status IN ('PAID', 'FULFILLED')
+               AND status IN ('PAID', 'FULFILLED', 'PROCESSING')
              GROUP BY service_type, amount
              ORDER BY sales_count DESC
              LIMIT 5
