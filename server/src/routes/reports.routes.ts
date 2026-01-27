@@ -63,10 +63,13 @@ router.get('/stats', ensureAdmin, async (req, res) => {
             sql`${orders.status} IN ('PAID', 'FULFILLED')`
         ));
 
-        // Order Counts
+        // Successful Order Counts (PAID, FULFILLED, or PROCESSING)
         const countRes = await db.select({
             count: sql<number>`count(*)`
-        }).from(orders).where(dateCondition);
+        }).from(orders).where(and(
+            dateCondition,
+            sql`${orders.status} IN ('PAID', 'FULFILLED', 'PROCESSING')`
+        ));
 
         // Failed Counts
         const failedRes = await db.select({

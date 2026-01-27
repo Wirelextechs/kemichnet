@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const WIRENET_API_KEY = process.env.WIRENET_API_KEY || 'wirenet_live_036282f2731add57c4789dd99cb3ccbfda0dd5fcfab9c8c5';
+const WIRENET_API_KEY = process.env.WIRENET_API_KEY || 'wirenet_live_ba1ed50080a6496ea253bf49f378745e945cc8dda0c41645';
 const WIRENET_BASE_URL = 'https://wirenet.top/api/v1';
 
 export interface WireNetOrderRequest {
