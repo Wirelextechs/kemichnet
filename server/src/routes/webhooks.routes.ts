@@ -83,4 +83,84 @@ router.get('/wirenet', (req, res) => {
     res.json({ status: 'WireNet webhook endpoint active', timestamp: new Date() });
 });
 
+// ============ RECONCILIATION ENDPOINTS ============
+import { reconcileStuckOrders, getStuckOrdersCount } from '../services/reconciliation.service';
+
+/**
+ * Cron job endpoint for reconciliation
+ * 
+ * Vercel Cron will call this endpoint on a schedule.
+ * Secured by CRON_SECRET environment variable.
+ */
+router.get('/cron/reconcile', async (req, res) => {
+    // Verify cron secret (Vercel sends this header)
+    const cronSecret = process.env.CRON_SECRET;
+    const authHeader = req.headers.authorization;
+
+    if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
+        console.log('Cron reconciliation: unauthorized attempt');
+        return res.status(401).json({ message: 'Unauthorized' });
+    }
+
+    console.log('Cron reconciliation started...');
+
+    try {
+        // Find stuck orders (>30 min), auto-fulfill after 60 min
+        const result = await reconcileStuckOrders(30, 60);
+
+        console.log('Cron reconciliation completed:', result);
+        res.json({ success: true, ...result });
+    } catch (error: any) {
+        console.error('Cron reconciliation error:', error);
+        res.status(500).json({ message: 'Reconciliation failed', error: error.message });
+    }
+});
+
+/**
+ * Admin endpoint to manually trigger reconciliation
+ */
+router.post('/admin/reconcile', async (req, res) => {
+    if (!(req as any).isAuthenticated?.()) {
+        return res.status(401).json({ message: 'Login required' });
+    }
+
+    const user = (req as any).user;
+    if (user?.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+    }
+
+    const { stuckMinutes = 30, autoFulfillMinutes } = req.body;
+
+    console.log(`Admin ${user.email} triggered reconciliation`);
+
+    try {
+        const result = await reconcileStuckOrders(stuckMinutes, autoFulfillMinutes);
+        res.json({ success: true, ...result });
+    } catch (error: any) {
+        console.error('Admin reconciliation error:', error);
+        res.status(500).json({ message: 'Reconciliation failed', error: error.message });
+    }
+});
+
+/**
+ * Get count of stuck orders (for admin dashboard)
+ */
+router.get('/stuck-orders-count', async (req, res) => {
+    if (!(req as any).isAuthenticated?.()) {
+        return res.status(401).json({ message: 'Login required' });
+    }
+
+    const user = (req as any).user;
+    if (user?.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+    }
+
+    try {
+        const count = await getStuckOrdersCount(30);
+        res.json({ stuckCount: count });
+    } catch (error: any) {
+        res.status(500).json({ message: 'Error fetching stuck orders count' });
+    }
+});
+
 export default router;
