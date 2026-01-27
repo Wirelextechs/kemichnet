@@ -1,11 +1,5 @@
 {
     "version": 2,
-    "crons": [
-        {
-            "path": "/api/webhooks/cron/reconcile",
-            "schedule": "*/5 * * * *"
-        }
-    ],
     "builds": [
         {
             "src": "client/package.json",
