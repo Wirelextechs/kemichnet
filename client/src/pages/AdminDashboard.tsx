@@ -812,8 +812,8 @@ function UsersTab() {
                     <input type="text" placeholder="Search by email or ID..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary outline-none text-sm w-64" />
                 </div>
             </div>
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-                <table className="w-full text-sm text-left">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-x-auto">
+                <table className="w-full text-sm text-left min-w-[600px]">
                     <thead className="bg-gray-50 text-gray-600 uppercase text-xs">
                         <tr>
                             <th className="p-4">ID</th>
