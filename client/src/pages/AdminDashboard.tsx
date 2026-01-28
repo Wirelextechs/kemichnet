@@ -254,6 +254,13 @@ function OrdersTab() {
     const [phoneSearch, setPhoneSearch] = useState('');
     const [loading, setLoading] = useState(true);
     const [updatingId, setUpdatingId] = useState<number | null>(null);
+    const [retryingId, setRetryingId] = useState<number | null>(null);
+    const [toast, setToast] = useState<{ type: 'success' | 'error' | 'warning', message: string } | null>(null);
+
+    const showToast = (type: 'success' | 'error' | 'warning', message: string) => {
+        setToast({ type, message });
+        setTimeout(() => setToast(null), 5000);
+    };
 
     const fetchOrders = () => {
         api.get('/api/orders/all-orders')
@@ -278,6 +285,29 @@ function OrdersTab() {
         }
     };
 
+    const handleRetry = async (orderId: number) => {
+        setRetryingId(orderId);
+        try {
+            const res = await api.post(`/api/orders/retry/${orderId}`);
+            showToast('success', `Order #${orderId} successfully pushed to WireNet!`);
+            // Update the order status locally
+            setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: 'FULFILLED' } : o));
+        } catch (error: any) {
+            const errorData = error.response?.data;
+            if (errorData?.code === 'INSUFFICIENT_BALANCE') {
+                const details = errorData.details;
+                const message = details?.currentBalance !== null
+                    ? `Insufficient WireNet Balance! Current: GHS ${details.currentBalance}, Required: GHS ${details.requiredAmount}`
+                    : `Insufficient WireNet Balance! Please top up your WireNet account.`;
+                showToast('warning', message);
+            } else {
+                showToast('error', errorData?.message || 'Failed to retry order');
+            }
+        } finally {
+            setRetryingId(null);
+        }
+    };
+
     const filteredOrders = orders.filter(order => {
         const statusMatch = statusFilter === 'ALL' || order.status === statusFilter;
         // Normalize phone numbers by removing spaces and dashes for better matching
@@ -293,6 +323,22 @@ function OrdersTab() {
 
     return (
         <div>
+            {/* Toast Notification */}
+            {toast && (
+                <div className={clsx(
+                    "fixed top-4 right-4 z-50 px-4 py-3 rounded-lg shadow-lg text-white font-medium flex items-center gap-2 animate-[slideIn_0.3s_ease-out]",
+                    toast.type === 'success' ? "bg-green-500" :
+                        toast.type === 'warning' ? "bg-yellow-500" :
+                            "bg-red-500"
+                )}>
+                    {toast.type === 'success' && <span>✅</span>}
+                    {toast.type === 'warning' && <span>⚠️</span>}
+                    {toast.type === 'error' && <span>❌</span>}
+                    {toast.message}
+                    <button onClick={() => setToast(null)} className="ml-2 opacity-70 hover:opacity-100">×</button>
+                </div>
+            )}
+
             <div className="flex flex-wrap gap-3 justify-between items-center mb-4">
                 <input
                     type="text"
@@ -326,6 +372,7 @@ function OrdersTab() {
                             <th className="p-4">Amount</th>
                             <th className="p-4">Status</th>
                             <th className="p-4">Date</th>
+                            <th className="p-4">Actions</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
@@ -364,11 +411,30 @@ function OrdersTab() {
                                     </select>
                                 </td>
                                 <td className="p-4 text-gray-500">{new Date(order.createdAt).toLocaleString()}</td>
+                                <td className="p-4">
+                                    {order.status === 'PAID' && (
+                                        <button
+                                            onClick={() => handleRetry(order.id)}
+                                            disabled={retryingId === order.id}
+                                            className={clsx(
+                                                "px-3 py-1.5 rounded-lg text-xs font-bold transition-all",
+                                                retryingId === order.id
+                                                    ? "bg-gray-200 text-gray-500 cursor-wait"
+                                                    : "bg-orange-500 text-white hover:bg-orange-600"
+                                            )}
+                                        >
+                                            {retryingId === order.id ? 'Retrying...' : '🔄 Retry'}
+                                        </button>
+                                    )}
+                                    {order.status === 'FULFILLED' && (
+                                        <span className="text-green-600 text-xs">✓ Done</span>
+                                    )}
+                                </td>
                             </tr>
                         ))}
                         {filteredOrders.length === 0 && (
                             <tr>
-                                <td colSpan={7} className="p-8 text-center text-gray-400">No orders found</td>
+                                <td colSpan={8} className="p-8 text-center text-gray-400">No orders found</td>
                             </tr>
                         )}
                     </tbody>

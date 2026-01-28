@@ -101,3 +101,41 @@ export const checkWireNetOrderStatus = async (reference: string) => {
     // So we can't implement polling for now unless we assume standard REST patterns or use webhooks.
     return 'unknown';
 }
+
+export const getWireNetBalance = async (): Promise<{ balance: number; currency: string }> => {
+    try {
+        const response = await axios.get(`${WIRENET_BASE_URL}/balance`, {
+            headers: {
+                'Authorization': `Bearer ${WIRENET_API_KEY}`,
+                'Accept': 'application/json'
+            },
+            timeout: 10000
+        });
+
+        console.log("WireNet Balance Response:", response.data);
+
+        // Handle different response formats
+        const data = response.data.data || response.data;
+        return {
+            balance: parseFloat(data.balance || data.amount || 0),
+            currency: data.currency || 'GHS'
+        };
+    } catch (error: any) {
+        console.error("WireNet Balance Check Failed:", error.response?.data || error.message);
+        throw new Error("Failed to check WireNet balance");
+    }
+};
+
+// Check if error is due to insufficient balance
+export const isInsufficientBalanceError = (error: any): boolean => {
+    const errorMessage = error.response?.data?.message || error.message || '';
+    const errorCode = error.response?.data?.code || '';
+
+    return (
+        errorMessage.toLowerCase().includes('insufficient') ||
+        errorMessage.toLowerCase().includes('balance') ||
+        errorCode === 'INSUFFICIENT_BALANCE' ||
+        errorCode === 'LOW_BALANCE'
+    );
+};
+

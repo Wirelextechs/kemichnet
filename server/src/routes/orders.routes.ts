@@ -3,7 +3,7 @@ import { db } from '../db';
 import { orders, products, users } from '../db/schema';
 import { eq, desc } from 'drizzle-orm';
 import { verifyPayment, initializePayment } from '../services/paystack.service';
-import { placeWireNetOrder } from '../services/wirenet.service';
+import { placeWireNetOrder, getWireNetBalance, isInsufficientBalanceError } from '../services/wirenet.service';
 
 const router = Router();
 
@@ -271,6 +271,156 @@ router.patch('/update-status/:orderId', async (req, res) => {
     } catch (error) {
         console.error("Update Status Error", error);
         res.status(500).json({ message: "Server error" });
+    }
+});
+
+// Admin: Retry/Repush Order to WireNet
+router.post('/retry/:orderId', async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Login required" });
+    const user = req.user as any;
+
+    if (user.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+    }
+
+    const { orderId } = req.params;
+
+    try {
+        // 1. Get the order
+        const orderRes = await db.select().from(orders).where(eq(orders.id, parseInt(orderId))).limit(1);
+        const order = orderRes[0];
+
+        if (!order) {
+            return res.status(404).json({ message: "Order not found" });
+        }
+
+        // 2. Only allow retry for PAID orders (not already PROCESSING or FULFILLED)
+        if (order.status !== 'PAID') {
+            return res.status(400).json({
+                message: `Cannot retry order with status '${order.status}'. Only PAID orders can be retried.`
+            });
+        }
+
+        // 3. Check WireNet balance first
+        let balanceInfo;
+        try {
+            balanceInfo = await getWireNetBalance();
+            console.log(`WireNet Balance: ${balanceInfo.balance} ${balanceInfo.currency}`);
+        } catch (balanceError) {
+            console.error("Failed to check WireNet balance:", balanceError);
+            // Continue anyway - let WireNet reject it if balance is low
+        }
+
+        // 4. Get the product to check cost
+        const productRes = await db.select().from(products)
+            .where(eq(products.wirenetPackageId, order.wirenetPackageId || ''))
+            .limit(1);
+        const product = productRes[0];
+
+        const estimatedCost = product?.costPrice ? parseFloat(product.costPrice) : parseFloat(order.amount);
+
+        // 5. Pre-check balance if we got it
+        if (balanceInfo && balanceInfo.balance < estimatedCost) {
+            return res.status(400).json({
+                message: "Insufficient WireNet balance",
+                code: "INSUFFICIENT_BALANCE",
+                details: {
+                    currentBalance: balanceInfo.balance,
+                    currency: balanceInfo.currency,
+                    requiredAmount: estimatedCost
+                }
+            });
+        }
+
+        // 6. Update to PROCESSING before attempting
+        await db.update(orders)
+            .set({ status: 'PROCESSING', updatedAt: new Date() })
+            .where(eq(orders.id, parseInt(orderId)));
+
+        // 7. Attempt to place WireNet order
+        try {
+            const wireNetResponse = await placeWireNetOrder({
+                serviceType: order.serviceType,
+                packageId: order.wirenetPackageId || '',
+                beneficiaryPhone: order.beneficiaryPhone,
+                amount: parseFloat(order.amount),
+                paymentReference: order.paymentReference || `RETRY_${Date.now()}`
+            });
+
+            // Success - update to FULFILLED
+            await db.update(orders)
+                .set({
+                    status: 'FULFILLED',
+                    supplierReference: wireNetResponse.reference || wireNetResponse.id || null,
+                    updatedAt: new Date()
+                })
+                .where(eq(orders.id, parseInt(orderId)));
+
+            console.log(`Admin ${user.email} successfully retried order ${orderId}`);
+
+            res.json({
+                message: "Order successfully pushed to WireNet",
+                orderId,
+                status: 'FULFILLED',
+                wireNetReference: wireNetResponse.reference || wireNetResponse.id
+            });
+
+        } catch (wireNetError: any) {
+            // Revert to PAID if WireNet fails
+            await db.update(orders)
+                .set({ status: 'PAID', updatedAt: new Date() })
+                .where(eq(orders.id, parseInt(orderId)));
+
+            // Check if it's a balance issue
+            if (isInsufficientBalanceError(wireNetError)) {
+                // Try to get current balance for the error message
+                let currentBalance = null;
+                try {
+                    const freshBalance = await getWireNetBalance();
+                    currentBalance = freshBalance.balance;
+                } catch (e) { /* ignore */ }
+
+                return res.status(400).json({
+                    message: "Insufficient WireNet balance. Please top up your WireNet account.",
+                    code: "INSUFFICIENT_BALANCE",
+                    details: {
+                        currentBalance,
+                        requiredAmount: estimatedCost,
+                        wireNetError: wireNetError.response?.data?.message || wireNetError.message
+                    }
+                });
+            }
+
+            // Other WireNet error
+            console.error(`WireNet retry failed for order ${orderId}:`, wireNetError.response?.data || wireNetError.message);
+            return res.status(500).json({
+                message: "WireNet order failed",
+                code: "WIRENET_ERROR",
+                details: wireNetError.response?.data?.message || wireNetError.message
+            });
+        }
+
+    } catch (error) {
+        console.error("Retry Order Error", error);
+        res.status(500).json({ message: "Server error" });
+    }
+});
+
+// Admin: Get WireNet Balance
+router.get('/wirenet-balance', async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ message: "Login required" });
+    const user = req.user as any;
+
+    if (user.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+    }
+
+    try {
+        const balance = await getWireNetBalance();
+        res.json(balance);
+    } catch (error: any) {
+        console.error("Get WireNet Balance Error:", error);
+        res.status(500).json({ message: "Failed to fetch WireNet balance", error: error.message });
     }
 });
 
