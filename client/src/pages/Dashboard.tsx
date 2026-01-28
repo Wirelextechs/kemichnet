@@ -141,12 +141,14 @@ export default function Dashboard() {
         });
 
     const filteredOrders = orders.filter(order => {
-        const s = searchQuery.toLowerCase();
+        const s = searchQuery.toLowerCase().replace(/[\s-]/g, '');
+        const normalizedPhone = (order.beneficiaryPhone || '').replace(/[\s-]/g, '');
         const matchesSearch =
             (order.serviceType && order.serviceType.toLowerCase().includes(s)) ||
             (order.amount && String(order.amount).includes(s)) ||
             (order.status && order.status.toLowerCase().includes(s)) ||
-            (order.paymentReference && order.paymentReference.toLowerCase().includes(s));
+            (order.paymentReference && order.paymentReference.toLowerCase().includes(s)) ||
+            (normalizedPhone && normalizedPhone.includes(s));
 
         const matchesStatus = statusFilter === 'ALL' || order.status === statusFilter;
         return matchesSearch && matchesStatus;
