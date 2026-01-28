@@ -8,7 +8,7 @@ export const initializePayment = async (email: string, amount: number, reference
     try {
         const response = await axios.post('https://api.paystack.co/transaction/initialize', {
             email,
-            amount: amount * 100, // Paystack takes kobo/pesewas
+            amount: Math.round(amount * 100), // Paystack takes kobo/pesewas - must be integer
             reference,
             callback_url: callbackUrl
         }, {
