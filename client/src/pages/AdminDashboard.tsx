@@ -15,6 +15,7 @@ interface Order {
     createdAt: string;
     beneficiaryPhone: string;
     paymentReference: string;
+    supplierReference?: string | null; // WireNet reference - null means not pushed yet
 }
 
 interface Product {
@@ -288,7 +289,7 @@ function OrdersTab() {
     const handleRetry = async (orderId: number) => {
         setRetryingId(orderId);
         try {
-            const res = await api.post(`/api/orders/retry/${orderId}`);
+            await api.post(`/api/orders/retry/${orderId}`);
             showToast('success', `Order #${orderId} successfully pushed to WireNet!`);
             // Update the order status locally
             setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: 'FULFILLED' } : o));
@@ -412,7 +413,8 @@ function OrdersTab() {
                                 </td>
                                 <td className="p-4 text-gray-500">{new Date(order.createdAt).toLocaleString()}</td>
                                 <td className="p-4">
-                                    {order.status === 'PAID' && (
+                                    {/* Show Retry only for PAID orders that haven't been pushed to WireNet yet */}
+                                    {order.status === 'PAID' && !order.supplierReference && (
                                         <button
                                             onClick={() => handleRetry(order.id)}
                                             disabled={retryingId === order.id}
@@ -428,6 +430,9 @@ function OrdersTab() {
                                     )}
                                     {order.status === 'FULFILLED' && (
                                         <span className="text-green-600 text-xs">✓ Done</span>
+                                    )}
+                                    {order.status === 'PAID' && order.supplierReference && (
+                                        <span className="text-blue-600 text-xs">⏳ Awaiting</span>
                                     )}
                                 </td>
                             </tr>
