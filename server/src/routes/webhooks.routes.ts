@@ -8,48 +8,53 @@ const router = Router();
 /**
  * WireNet Webhook Handler
  * 
- * WireNet will POST to this endpoint when order status changes.
- * Expected payload (based on typical webhook patterns):
+ * WireNet POSTs to this endpoint when order status changes.
+ * Payload format (from WireNet API docs):
  * {
- *   "request_id": "PAY_1234567890_1",  // Our paymentReference
- *   "status": "successful" | "failed" | "pending" | "refunded",
- *   "transaction_id": "wirenet_txn_123",
- *   "message": "Transaction completed successfully"
+ *   "event": "order.updated",
+ *   "data": {
+ *     "order_id": "API-ORDER-ID",
+ *     "reference": "unique-ref-123",  // Our paymentReference (request_id we sent)
+ *     "status": "FULFILLED",          // PROCESSING, FULFILLED, REFUNDED
+ *     "message": "Transaction successful"
+ *   }
  * }
  */
 router.post('/wirenet', async (req, res) => {
     console.log('WireNet Webhook Received:', JSON.stringify(req.body, null, 2));
 
     try {
-        const { request_id, status, transaction_id, message } = req.body;
+        const { event, data } = req.body;
 
-        if (!request_id) {
-            console.error('WireNet webhook missing request_id');
-            return res.status(400).json({ message: 'Missing request_id' });
+        if (!data || !data.reference) {
+            console.error('WireNet webhook missing data.reference');
+            return res.status(400).json({ message: 'Missing data.reference' });
         }
 
-        // Find order by paymentReference (we use this as request_id when placing orders)
+        const { order_id, reference, status, message } = data;
+
+        // Find order by paymentReference (we sent this as request_id when placing orders)
         const orderRes = await db.select()
             .from(orders)
-            .where(eq(orders.paymentReference, request_id))
+            .where(eq(orders.paymentReference, reference))
             .limit(1);
 
         const order = orderRes[0];
 
         if (!order) {
-            console.error(`WireNet webhook: Order not found for request_id ${request_id}`);
+            console.error(`WireNet webhook: Order not found for reference ${reference}`);
             return res.status(404).json({ message: 'Order not found' });
         }
 
         // Map WireNet status to our status
         let newStatus = order.status;
-        const lowerStatus = status?.toLowerCase();
+        const upperStatus = status?.toUpperCase();
 
-        if (lowerStatus === 'successful' || lowerStatus === 'success' || lowerStatus === 'completed') {
+        if (upperStatus === 'FULFILLED' || upperStatus === 'SUCCESS' || upperStatus === 'COMPLETED') {
             newStatus = 'FULFILLED';
-        } else if (lowerStatus === 'failed' || lowerStatus === 'cancelled' || lowerStatus === 'refunded') {
+        } else if (upperStatus === 'REFUNDED' || upperStatus === 'FAILED' || upperStatus === 'CANCELLED') {
             newStatus = 'FAILED';
-        } else if (lowerStatus === 'pending' || lowerStatus === 'processing') {
+        } else if (upperStatus === 'PROCESSING' || upperStatus === 'QUEUED' || upperStatus === 'PENDING') {
             newStatus = 'PROCESSING';
         }
 
@@ -58,12 +63,12 @@ router.post('/wirenet', async (req, res) => {
             await db.update(orders)
                 .set({
                     status: newStatus,
-                    supplierReference: transaction_id || order.supplierReference,
+                    supplierReference: order_id || order.supplierReference,
                     updatedAt: new Date()
                 })
                 .where(eq(orders.id, order.id));
 
-            console.log(`Order ${order.id} updated: ${order.status} -> ${newStatus}`);
+            console.log(`Order ${order.id} updated: ${order.status} -> ${newStatus} (WireNet: ${status}, msg: ${message})`);
         } else {
             console.log(`Order ${order.id} status unchanged: ${order.status}`);
         }
