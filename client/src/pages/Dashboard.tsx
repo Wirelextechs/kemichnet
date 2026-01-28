@@ -21,6 +21,69 @@ interface Order {
     beneficiaryPhone: string;
 }
 
+// --- Phone Number Validation for Ghana Networks ---
+const NETWORK_PREFIXES: Record<string, string[]> = {
+    'MTN_UP2U': ['024', '025', '053', '054', '055', '059'],
+    'MTN_EXPRESS': ['024', '025', '053', '054', '055', '059'],
+    'TELECEL': ['020', '050'],
+    'AT': ['026', '027', '056', '057']
+};
+
+const normalizePhone = (phone: string): string => {
+    // Remove spaces, dashes, and any non-digits
+    let cleaned = phone.replace(/[^\d]/g, '');
+    // Handle +233 prefix
+    if (cleaned.startsWith('233') && cleaned.length === 12) {
+        cleaned = '0' + cleaned.slice(3);
+    }
+    return cleaned;
+};
+
+const validatePhoneForNetwork = (phone: string, serviceType: string): { valid: boolean; error?: string } => {
+    const normalized = normalizePhone(phone);
+
+    // Check length (Ghana numbers are 10 digits)
+    if (normalized.length !== 10) {
+        return { valid: false, error: 'Phone number must be 10 digits (e.g., 0551234567)' };
+    }
+
+    // Check if starts with 0
+    if (!normalized.startsWith('0')) {
+        return { valid: false, error: 'Phone number must start with 0' };
+    }
+
+    const prefixes = NETWORK_PREFIXES[serviceType];
+    if (!prefixes) {
+        // Unknown network, allow any valid Ghana number
+        return { valid: true };
+    }
+
+    const prefix = normalized.slice(0, 3);
+    if (!prefixes.includes(prefix)) {
+        const networkName = serviceType.replace('_', ' ');
+        return {
+            valid: false,
+            error: `${prefix}... is not a valid ${networkName} number. Valid prefixes: ${prefixes.join(', ')}`
+        };
+    }
+
+    return { valid: true };
+};
+
+const getNetworkFromPhone = (phone: string): string | null => {
+    const normalized = normalizePhone(phone);
+    if (normalized.length !== 10) return null;
+
+    const prefix = normalized.slice(0, 3);
+    for (const [network, prefixes] of Object.entries(NETWORK_PREFIXES)) {
+        if (prefixes.includes(prefix)) {
+            return network;
+        }
+    }
+    return null;
+};
+
+
 export default function Dashboard() {
     const [products, setProducts] = useState<Product[]>([]);
     const [orders, setOrders] = useState<Order[]>([]);
@@ -97,11 +160,17 @@ export default function Dashboard() {
         if (!selectedProduct) return;
         if (!beneficiary) return alert('Please enter a beneficiary number');
 
+        // Validate phone number matches the network
+        const validation = validatePhoneForNetwork(beneficiary, selectedProduct.serviceType);
+        if (!validation.valid) {
+            return alert(validation.error);
+        }
+
         setLoading(true);
         try {
             const res = await api.post('/api/orders/init', {
                 productId: selectedProduct.id,
-                beneficiaryPhone: beneficiary
+                beneficiaryPhone: normalizePhone(beneficiary)
             });
             const authUrl = res.data.authorizationUrl;
             if (authUrl) {
@@ -129,14 +198,20 @@ export default function Dashboard() {
             const phone = parts[0];
             const amount = parts[1]; // e.g. "5" or "1"
 
+            // Validate phone number for the selected network
+            const phoneValidation = validatePhoneForNetwork(phone, activeTab);
+            if (!phoneValidation.valid) {
+                return { phone, amount, valid: false, error: phoneValidation.error };
+            }
+
             const networkProducts = products.filter(p => p.serviceType === activeTab);
             // Match product where dataAmount contains amount (e.g. "1" matches "1GB" or "10GB" - risky, better exact or stripped)
             // Let's strip non-digits from dataAmount and compare
             const product = networkProducts.find(p => p.dataAmount.replace(/\D/g, '') === amount || p.dataAmount === amount);
 
-            if (!product) return { phone, amount, valid: false, error: `No ${amount}GB package found` };
+            if (!product) return { phone: normalizePhone(phone), amount, valid: false, error: `No ${amount}GB package found` };
 
-            return { phone, amount, productId: product.id, productName: product.name, price: product.price, valid: true };
+            return { phone: normalizePhone(phone), amount, productId: product.id, productName: product.name, price: product.price, valid: true };
         });
         setBulkOrders(processed);
     };
