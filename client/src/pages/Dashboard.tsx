@@ -70,19 +70,6 @@ const validatePhoneForNetwork = (phone: string, serviceType: string): { valid: b
     return { valid: true };
 };
 
-const getNetworkFromPhone = (phone: string): string | null => {
-    const normalized = normalizePhone(phone);
-    if (normalized.length !== 10) return null;
-
-    const prefix = normalized.slice(0, 3);
-    for (const [network, prefixes] of Object.entries(NETWORK_PREFIXES)) {
-        if (prefixes.includes(prefix)) {
-            return network;
-        }
-    }
-    return null;
-};
-
 
 export default function Dashboard() {
     const [products, setProducts] = useState<Product[]>([]);
