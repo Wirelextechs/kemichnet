@@ -48,7 +48,7 @@ export default function AdminDashboard() {
     const navigate = useNavigate();
 
     return (
-        <div className="min-h-screen bg-gray-50 flex flex-col">
+        <div className="min-h-screen bg-gray-50 flex flex-col overflow-x-hidden">
             <header className="bg-gray-900 text-white shadow-sm p-4 sticky top-0 z-10">
                 <div className="max-w-7xl mx-auto flex justify-between items-center">
                     <h1 className="text-xl font-bold">KemichNet <span className="text-xs bg-red-600 px-2 py-0.5 rounded ml-2">ADMIN</span></h1>
