@@ -467,15 +467,15 @@ export default function Dashboard() {
                             </div>
                         </div>
 
-                        <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
-                            <table className="w-full text-sm text-left">
+                        <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-x-auto">
+                            <table className="w-full text-sm text-left min-w-[600px]">
                                 <thead className="bg-gray-50/80 text-gray-400 uppercase text-xs tracking-wider">
                                     <tr>
-                                        <th className="p-6 font-medium">Service</th>
-                                        <th className="p-6 font-medium">Number</th>
-                                        <th className="p-6 font-medium">Amount</th>
-                                        <th className="p-6 font-medium">Status</th>
-                                        <th className="p-6 font-medium">Date</th>
+                                        <th className="p-4 font-medium">Service</th>
+                                        <th className="p-4 font-medium">Number</th>
+                                        <th className="p-4 font-medium">Amount</th>
+                                        <th className="p-4 font-medium">Status</th>
+                                        <th className="p-4 font-medium">Date</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-50">
@@ -487,15 +487,15 @@ export default function Dashboard() {
 
                                         return (
                                             <tr key={order.id} className="hover:bg-gray-50 transition-colors">
-                                                <td className="p-6 font-bold text-gray-900">{order.serviceType.replace('_', ' ')}</td>
-                                                <td className="p-6 font-mono text-gray-600">{order.beneficiaryPhone}</td>
-                                                <td className="p-6 font-medium">₵{order.amount}</td>
-                                                <td className="p-6">
+                                                <td className="p-4 font-bold text-gray-900">{order.serviceType.replace('_', ' ')}</td>
+                                                <td className="p-4 font-mono text-gray-600">{order.beneficiaryPhone}</td>
+                                                <td className="p-4 font-medium">₵{order.amount}</td>
+                                                <td className="p-4">
                                                     <span className={`px-3 py-1 rounded-full text-xs font-bold ${statusColor}`}>
                                                         {order.status}
                                                     </span>
                                                 </td>
-                                                <td className="p-6 text-gray-400">{new Date(order.createdAt).toLocaleDateString()} <span className="text-xs">{new Date(order.createdAt).toLocaleTimeString()}</span></td>
+                                                <td className="p-4 text-gray-400 whitespace-nowrap">{new Date(order.createdAt).toLocaleDateString()} <span className="text-xs">{new Date(order.createdAt).toLocaleTimeString()}</span></td>
                                             </tr>
                                         )
                                     })}

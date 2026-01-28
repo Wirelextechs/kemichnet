@@ -362,8 +362,8 @@ function OrdersTab() {
                 </select>
             </div>
 
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden overflow-x-auto">
-                <table className="w-full text-sm text-left">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-x-auto">
+                <table className="w-full text-sm text-left min-w-[800px]">
                     <thead className="bg-gray-50 text-gray-600 uppercase text-xs">
                         <tr>
                             <th className="p-4">ID</th>
