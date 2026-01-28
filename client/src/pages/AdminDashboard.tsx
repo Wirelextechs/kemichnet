@@ -278,7 +278,10 @@ function OrdersTab() {
 
     const filteredOrders = orders.filter(order => {
         const statusMatch = statusFilter === 'ALL' || order.status === statusFilter;
-        const phoneMatch = !phoneSearch || order.beneficiaryPhone?.includes(phoneSearch);
+        // Normalize phone numbers by removing spaces and dashes for better matching
+        const normalizedSearch = phoneSearch.replace(/[\s-]/g, '');
+        const normalizedPhone = (order.beneficiaryPhone || '').replace(/[\s-]/g, '');
+        const phoneMatch = !normalizedSearch || normalizedPhone.includes(normalizedSearch);
         return statusMatch && phoneMatch;
     });
 
