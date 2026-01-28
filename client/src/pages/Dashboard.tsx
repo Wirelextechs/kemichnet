@@ -101,7 +101,14 @@ export default function Dashboard() {
     const [whatsappLink, setWhatsappLink] = useState<string | null>(null);
     const [announcement, setAnnouncement] = useState<string | null>(null);
     const [announcementDismissed, setAnnouncementDismissed] = useState(false);
+    const [toast, setToast] = useState<{ type: 'success' | 'error' | 'warning'; message: string } | null>(null);
     const navigate = useNavigate();
+
+    // Toast helper
+    const showToast = (type: 'success' | 'error' | 'warning', message: string) => {
+        setToast({ type, message });
+        setTimeout(() => setToast(null), 5000);
+    };
 
     useEffect(() => {
         fetchProducts();
@@ -158,12 +165,16 @@ export default function Dashboard() {
 
     const handleBuy = async () => {
         if (!selectedProduct) return;
-        if (!beneficiary) return alert('Please enter a beneficiary number');
+        if (!beneficiary) {
+            showToast('error', 'Please enter a beneficiary number');
+            return;
+        }
 
         // Validate phone number matches the network
         const validation = validatePhoneForNetwork(beneficiary, selectedProduct.serviceType);
         if (!validation.valid) {
-            return alert(validation.error);
+            showToast('error', validation.error || 'Invalid phone number');
+            return;
         }
 
         setLoading(true);
@@ -177,10 +188,10 @@ export default function Dashboard() {
                 // Redirect to Paystack
                 window.location.href = authUrl;
             } else {
-                alert('Failed to initialize payment');
+                showToast('error', 'Failed to initialize payment');
             }
         } catch (error: any) {
-            alert(`Order Failed: ${error.response?.data?.message || error.message}`);
+            showToast('error', `Order Failed: ${error.response?.data?.message || error.message}`);
             console.error(error);
         } finally {
             setLoading(false);
@@ -315,6 +326,28 @@ export default function Dashboard() {
 
     return (
         <div className={`min-h-screen bg-gray-50 flex flex-col transition-colors duration-500`}>
+            {/* Toast Notification */}
+            {toast && (
+                <div className={clsx(
+                    "fixed top-4 right-4 z-[200] max-w-sm w-full p-4 rounded-xl shadow-2xl animate-[slideIn_0.3s_ease-out]",
+                    toast.type === 'success' && "bg-green-600 text-white",
+                    toast.type === 'error' && "bg-red-600 text-white",
+                    toast.type === 'warning' && "bg-yellow-500 text-black"
+                )}>
+                    <div className="flex items-start gap-3">
+                        <span className="text-xl">
+                            {toast.type === 'success' && '✅'}
+                            {toast.type === 'error' && '❌'}
+                            {toast.type === 'warning' && '⚠️'}
+                        </span>
+                        <div className="flex-1">
+                            <p className="font-medium text-sm">{toast.message}</p>
+                        </div>
+                        <button onClick={() => setToast(null)} className="opacity-70 hover:opacity-100">✕</button>
+                    </div>
+                </div>
+            )}
+
             {/* Announcement Modal Overlay */}
             {announcement && !announcementDismissed && (
                 <div className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
