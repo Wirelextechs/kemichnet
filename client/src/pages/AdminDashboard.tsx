@@ -779,7 +779,7 @@ function UsersTab() {
 
 // --- Settings Tab ---
 function SettingsTab() {
-    const [settings, setSettings] = useState<{ whatsapp_link: string }>({ whatsapp_link: '' });
+    const [settings, setSettings] = useState<{ whatsapp_link: string, announcement: string }>({ whatsapp_link: '', announcement: '' });
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
@@ -788,7 +788,8 @@ function SettingsTab() {
         api.get('/api/settings')
             .then(res => {
                 setSettings({
-                    whatsapp_link: res.data.whatsapp_link || ''
+                    whatsapp_link: res.data.whatsapp_link || '',
+                    announcement: res.data.announcement || ''
                 });
             })
             .finally(() => setLoading(false));
@@ -807,6 +808,10 @@ function SettingsTab() {
         }
     };
 
+    const clearAnnouncement = async () => {
+        setSettings({ ...settings, announcement: '' });
+    };
+
     if (loading) return <div className="p-8 text-center text-gray-500">Loading settings...</div>;
 
     return (
@@ -823,7 +828,34 @@ function SettingsTab() {
                     </div>
                 )}
 
-                <div className="space-y-4">
+                <div className="space-y-6">
+                    {/* Announcement */}
+                    <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                        <label className="block text-sm font-medium text-yellow-800 mb-2">
+                            📢 Site Announcement
+                        </label>
+                        <textarea
+                            value={settings.announcement}
+                            onChange={(e) => setSettings({ ...settings, announcement: e.target.value })}
+                            placeholder="Type your announcement here... Leave empty to disable."
+                            rows={4}
+                            className="w-full border border-yellow-300 rounded-lg px-4 py-3 text-sm focus:ring-2 focus:ring-yellow-400 focus:border-yellow-400 outline-none bg-white"
+                        />
+                        <div className="flex items-center justify-between mt-2">
+                            <p className="text-xs text-yellow-700">
+                                This will show as a popup that customers must acknowledge before using the site.
+                            </p>
+                            {settings.announcement && (
+                                <button
+                                    onClick={clearAnnouncement}
+                                    className="text-xs text-red-600 hover:text-red-800"
+                                >
+                                    Clear Announcement
+                                </button>
+                            )}
+                        </div>
+                    </div>
+
                     {/* WhatsApp Link */}
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">

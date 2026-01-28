@@ -36,12 +36,15 @@ export default function Dashboard() {
     const [beneficiary, setBeneficiary] = useState('');
     const [loading, setLoading] = useState(false);
     const [whatsappLink, setWhatsappLink] = useState<string | null>(null);
+    const [announcement, setAnnouncement] = useState<string | null>(null);
+    const [announcementDismissed, setAnnouncementDismissed] = useState(false);
     const navigate = useNavigate();
 
     useEffect(() => {
         fetchProducts();
         fetchOrders();
         fetchWhatsappLink();
+        fetchAnnouncement();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
@@ -64,6 +67,30 @@ export default function Dashboard() {
             const res = await api.get('/api/settings/whatsapp_link');
             if (res.data?.value) setWhatsappLink(res.data.value);
         } catch (error) { console.error(error); }
+    };
+
+    const fetchAnnouncement = async () => {
+        try {
+            const res = await api.get('/api/settings/announcement');
+            if (res.data?.value) {
+                const announcementText = res.data.value;
+                // Check if user already dismissed this exact announcement
+                const dismissedAnnouncement = localStorage.getItem('dismissed_announcement');
+                if (dismissedAnnouncement !== announcementText) {
+                    setAnnouncement(announcementText);
+                    setAnnouncementDismissed(false);
+                } else {
+                    setAnnouncementDismissed(true);
+                }
+            }
+        } catch (error) { console.error(error); }
+    };
+
+    const dismissAnnouncement = () => {
+        if (announcement) {
+            localStorage.setItem('dismissed_announcement', announcement);
+        }
+        setAnnouncementDismissed(true);
     };
 
     const handleBuy = async () => {
@@ -213,6 +240,29 @@ export default function Dashboard() {
 
     return (
         <div className={`min-h-screen bg-gray-50 flex flex-col transition-colors duration-500`}>
+            {/* Announcement Modal Overlay */}
+            {announcement && !announcementDismissed && (
+                <div className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+                    <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 animate-[bounceIn_0.3s_ease-out]">
+                        <div className="flex items-center gap-3 mb-4">
+                            <div className="w-12 h-12 bg-yellow-100 rounded-full flex items-center justify-center">
+                                <span className="text-2xl">📢</span>
+                            </div>
+                            <h2 className="text-xl font-bold text-gray-900">Announcement</h2>
+                        </div>
+                        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
+                            <p className="text-gray-800 whitespace-pre-wrap">{announcement}</p>
+                        </div>
+                        <button
+                            onClick={dismissAnnouncement}
+                            className="w-full bg-primary text-white py-3 rounded-xl font-bold hover:bg-primary/90 transition-colors"
+                        >
+                            I Understand, Continue
+                        </button>
+                    </div>
+                </div>
+            )}
+
             {/* Header */}
             <header className="bg-white shadow-sm p-4 sticky top-0 z-10 transition-colors">
                 <div className="max-w-7xl mx-auto flex justify-between items-center">
