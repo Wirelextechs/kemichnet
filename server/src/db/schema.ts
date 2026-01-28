@@ -45,3 +45,10 @@ export const session = pgTable('session', {
     sess: text('sess').notNull(), // JSON data
     expire: timestamp('expire').notNull(),
 });
+
+// Site settings (key-value store)
+export const settings = pgTable('settings', {
+    key: text('key').primaryKey(),
+    value: text('value'),
+    updatedAt: timestamp('updated_at').defaultNow(),
+});

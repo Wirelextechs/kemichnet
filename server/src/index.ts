@@ -62,6 +62,7 @@ import orderRoutes from './routes/orders.routes';
 import userRoutes from './routes/users.routes';
 import reportRoutes from './routes/reports.routes';
 import webhookRoutes from './routes/webhooks.routes';
+import settingsRoutes from './routes/settings.routes';
 import { startPolling } from './services/polling.service';
 
 app.use('/auth', authRoutes);
@@ -70,6 +71,7 @@ app.use('/api/orders', orderRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/webhooks', webhookRoutes);
+app.use('/api/settings', settingsRoutes);
 
 app.get('/health', (req, res) => {
     res.json({ status: 'ok', timestamp: new Date() });
