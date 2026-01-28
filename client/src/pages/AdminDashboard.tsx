@@ -249,6 +249,7 @@ function ReportsTab() {
 function OrdersTab() {
     const [orders, setOrders] = useState<Order[]>([]);
     const [statusFilter, setStatusFilter] = useState('ALL');
+    const [phoneSearch, setPhoneSearch] = useState('');
     const [loading, setLoading] = useState(true);
     const [updatingId, setUpdatingId] = useState<number | null>(null);
 
@@ -266,7 +267,6 @@ function OrdersTab() {
         setUpdatingId(orderId);
         try {
             await api.patch(`/api/orders/update-status/${orderId}`, { status: newStatus });
-            // Update local state
             setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: newStatus } : o));
         } catch (error) {
             console.error('Failed to update status', error);
@@ -276,7 +276,11 @@ function OrdersTab() {
         }
     };
 
-    const filteredOrders = orders.filter(order => statusFilter === 'ALL' || order.status === statusFilter);
+    const filteredOrders = orders.filter(order => {
+        const statusMatch = statusFilter === 'ALL' || order.status === statusFilter;
+        const phoneMatch = !phoneSearch || order.beneficiaryPhone?.includes(phoneSearch);
+        return statusMatch && phoneMatch;
+    });
 
     if (loading) return <div>Loading orders...</div>;
 
@@ -284,13 +288,21 @@ function OrdersTab() {
 
     return (
         <div>
-            <div className="flex justify-end mb-4">
+            <div className="flex flex-wrap gap-3 justify-between items-center mb-4">
+                <input
+                    type="text"
+                    placeholder="Search by phone number..."
+                    value={phoneSearch}
+                    onChange={(e) => setPhoneSearch(e.target.value)}
+                    className="border rounded-lg px-3 py-2 text-sm bg-white focus:ring-2 focus:ring-primary outline-none w-64"
+                />
                 <select
                     value={statusFilter}
                     onChange={(e) => setStatusFilter(e.target.value)}
                     className="border rounded-lg px-3 py-2 text-sm bg-white focus:ring-2 focus:ring-primary outline-none"
                 >
                     <option value="ALL">All Status</option>
+                    <option value="PENDING_PAYMENT">Pending Payment</option>
                     <option value="PAID">Paid</option>
                     <option value="PROCESSING">Processing</option>
                     <option value="FULFILLED">Fulfilled</option>
@@ -298,7 +310,7 @@ function OrdersTab() {
                 </select>
             </div>
 
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden overflow-x-auto">
                 <table className="w-full text-sm text-left">
                     <thead className="bg-gray-50 text-gray-600 uppercase text-xs">
                         <tr>
@@ -315,7 +327,11 @@ function OrdersTab() {
                         {filteredOrders.map(order => (
                             <tr key={order.id} className="hover:bg-gray-50/50">
                                 <td className="p-4 text-gray-500">#{order.id}</td>
-                                <td className="p-4 text-xs">User {order.userId}<br /><span className="text-gray-400">{order.paymentReference}</span></td>
+                                <td className="p-4 text-xs">
+                                    <span className="font-medium text-gray-900">{(order as any).userEmail || `User ${order.userId}`}</span>
+                                    <br />
+                                    <span className="text-gray-400 text-[10px]">{order.paymentReference}</span>
+                                </td>
                                 <td className="p-4 font-mono">{order.beneficiaryPhone}</td>
                                 <td className="p-4">
                                     <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${getTheme(order.serviceType).badge.replace('text-', 'text-xs text-')}`}>
@@ -345,6 +361,11 @@ function OrdersTab() {
                                 <td className="p-4 text-gray-500">{new Date(order.createdAt).toLocaleString()}</td>
                             </tr>
                         ))}
+                        {filteredOrders.length === 0 && (
+                            <tr>
+                                <td colSpan={7} className="p-8 text-center text-gray-400">No orders found</td>
+                            </tr>
+                        )}
                     </tbody>
                 </table>
             </div>

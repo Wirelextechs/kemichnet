@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { db } from '../db';
-import { orders, products } from '../db/schema';
+import { orders, products, users } from '../db/schema';
 import { eq, desc } from 'drizzle-orm';
 import { verifyPayment, initializePayment } from '../services/paystack.service';
 import { placeWireNetOrder } from '../services/wirenet.service';
@@ -198,7 +198,7 @@ router.get('/my-orders', async (req, res) => {
     }
 });
 
-// Admin: Get All Orders
+// Admin: Get All Orders (with user email)
 router.get('/all-orders', async (req, res) => {
     if (!req.isAuthenticated()) return res.status(401).json({ message: "Login required" });
     const user = req.user as any;
@@ -208,8 +208,25 @@ router.get('/all-orders', async (req, res) => {
     }
 
     try {
-        // Sorting by newest first
-        const allOrders = await db.select().from(orders).orderBy(desc(orders.createdAt));
+        // Join with users table to get email
+        const allOrders = await db.select({
+            id: orders.id,
+            userId: orders.userId,
+            userEmail: users.email,
+            serviceType: orders.serviceType,
+            status: orders.status,
+            paymentReference: orders.paymentReference,
+            supplierReference: orders.supplierReference,
+            wirenetPackageId: orders.wirenetPackageId,
+            beneficiaryPhone: orders.beneficiaryPhone,
+            amount: orders.amount,
+            createdAt: orders.createdAt,
+            updatedAt: orders.updatedAt
+        })
+            .from(orders)
+            .leftJoin(users, eq(orders.userId, users.id))
+            .orderBy(desc(orders.createdAt));
+
         res.json(allOrders);
     } catch (error) {
         console.error("Get All Orders Error", error);
