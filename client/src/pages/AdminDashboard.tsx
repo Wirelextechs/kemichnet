@@ -43,7 +43,7 @@ interface StatsData {
 }
 
 export default function AdminDashboard() {
-    const [activeTab, setActiveTab] = useState<'orders' | 'products' | 'users' | 'reports'>('orders');
+    const [activeTab, setActiveTab] = useState<'orders' | 'products' | 'users' | 'reports' | 'settings'>('orders');
     const navigate = useNavigate();
 
     return (
