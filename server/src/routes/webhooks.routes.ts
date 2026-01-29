@@ -53,9 +53,9 @@ router.post('/wirenet', async (req, res) => {
         let newStatus = order.status;
         const upperStatus = status?.toUpperCase();
 
-        if (upperStatus === 'FULFILLED' || upperStatus === 'SUCCESS' || upperStatus === 'COMPLETED') {
+        if (upperStatus === 'FULFILLED' || upperStatus === 'SUCCESS' || upperStatus === 'SUCCESSFUL' || upperStatus === 'COMPLETED') {
             newStatus = 'FULFILLED';
-        } else if (upperStatus === 'REFUNDED' || upperStatus === 'FAILED' || upperStatus === 'CANCELLED') {
+        } else if (upperStatus === 'REFUNDED' || upperStatus === 'FAILED' || upperStatus === 'CANCELLED' || upperStatus === 'TRANSACTION_FAILED') {
             newStatus = 'FAILED';
         } else if (upperStatus === 'PROCESSING' || upperStatus === 'PENDING') {
             newStatus = 'PROCESSING';

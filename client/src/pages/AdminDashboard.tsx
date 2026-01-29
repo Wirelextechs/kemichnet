@@ -321,7 +321,7 @@ function OrdersTab() {
 
     if (loading) return <div>Loading orders...</div>;
 
-    const statusOptions = ['PENDING_PAYMENT', 'PAID', 'PROCESSING', 'FULFILLED', 'FAILED'];
+    const statusOptions = ['PENDING_PAYMENT', 'PAID', 'QUEUED', 'PROCESSING', 'FULFILLED', 'FAILED'];
 
     return (
         <div>
@@ -357,6 +357,7 @@ function OrdersTab() {
                     <option value="ALL">All Status</option>
                     <option value="PENDING_PAYMENT">Pending Payment</option>
                     <option value="PAID">Paid</option>
+                    <option value="QUEUED">Queued</option>
                     <option value="PROCESSING">Processing</option>
                     <option value="FULFILLED">Fulfilled</option>
                     <option value="FAILED">Failed</option>
