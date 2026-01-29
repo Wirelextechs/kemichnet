@@ -302,25 +302,34 @@ router.post('/retry/:orderId', async (req, res) => {
         }
 
         // 3. Check WireNet balance first
-        let balanceInfo;
+        let balanceInfo: { balance: number; currency: string } | null = null;
         try {
             balanceInfo = await getWireNetBalance();
-            console.log(`WireNet Balance: ${balanceInfo.balance} ${balanceInfo.currency}`);
+            console.log(`[Retry] WireNet Balance: ${balanceInfo.balance} ${balanceInfo.currency}`);
         } catch (balanceError) {
-            console.error("Failed to check WireNet balance:", balanceError);
+            console.error("[Retry] Failed to check WireNet balance:", balanceError);
             // Continue anyway - let WireNet reject it if balance is low
         }
 
-        // 4. Get the product to check cost
-        const productRes = await db.select().from(products)
-            .where(eq(products.wirenetPackageId, order.wirenetPackageId || ''))
-            .limit(1);
-        const product = productRes[0];
+        // 4. Get the product to check cost (by matching wirenetPackageId)
+        let estimatedCost = parseFloat(order.amount);
+        if (order.wirenetPackageId) {
+            const productRes = await db.select().from(products)
+                .where(eq(products.wirenetPackageId, order.wirenetPackageId))
+                .limit(1);
+            const product = productRes[0];
 
-        const estimatedCost = product?.costPrice ? parseFloat(product.costPrice) : parseFloat(order.amount);
+            if (product?.costPrice) {
+                estimatedCost = parseFloat(product.costPrice);
+                console.log(`[Retry] Found product cost: ${estimatedCost}`);
+            } else {
+                console.log(`[Retry] No product found for wirenetPackageId ${order.wirenetPackageId}, using order amount: ${estimatedCost}`);
+            }
+        }
 
-        // 5. Pre-check balance if we got it
+        // 5. Pre-check balance if we got it (but don't block if balance check failed)
         if (balanceInfo && balanceInfo.balance < estimatedCost) {
+            console.log(`[Retry] Insufficient balance: ${balanceInfo.balance} < ${estimatedCost}`);
             return res.status(400).json({
                 message: "Insufficient WireNet balance",
                 code: "INSUFFICIENT_BALANCE",
@@ -332,6 +341,8 @@ router.post('/retry/:orderId', async (req, res) => {
             });
         }
 
+        console.log(`[Retry] Balance check passed. Proceeding to push order ${orderId} to WireNet...`);
+
         // 6. Update to PROCESSING before attempting
         await db.update(orders)
             .set({ status: 'PROCESSING', updatedAt: new Date() })
@@ -339,30 +350,36 @@ router.post('/retry/:orderId', async (req, res) => {
 
         // 7. Attempt to place WireNet order
         try {
+            console.log(`[Retry] Placing WireNet order: serviceType=${order.serviceType}, packageId=${order.wirenetPackageId}, phone=${order.beneficiaryPhone}`);
+
             const wireNetResponse = await placeWireNetOrder({
                 serviceType: order.serviceType,
                 packageId: order.wirenetPackageId || '',
                 beneficiaryPhone: order.beneficiaryPhone,
                 amount: parseFloat(order.amount),
-                paymentReference: order.paymentReference || `RETRY_${Date.now()}`
+                paymentReference: `RETRY_${order.paymentReference || Date.now()}`
             });
 
+            console.log(`[Retry] WireNet response:`, wireNetResponse);
+
             // Success - update to FULFILLED
+            const supplierRef = wireNetResponse?.data?.order_id || wireNetResponse?.order_id || wireNetResponse?.reference || wireNetResponse?.id || null;
+
             await db.update(orders)
                 .set({
                     status: 'FULFILLED',
-                    supplierReference: wireNetResponse.reference || wireNetResponse.id || null,
+                    supplierReference: supplierRef,
                     updatedAt: new Date()
                 })
                 .where(eq(orders.id, parseInt(orderId)));
 
-            console.log(`Admin ${user.email} successfully retried order ${orderId}`);
+            console.log(`[Retry] Admin ${user.email} successfully retried order ${orderId}, supplierRef: ${supplierRef}`);
 
             res.json({
                 message: "Order successfully pushed to WireNet",
                 orderId,
                 status: 'FULFILLED',
-                wireNetReference: wireNetResponse.reference || wireNetResponse.id
+                wireNetReference: supplierRef
             });
 
         } catch (wireNetError: any) {
