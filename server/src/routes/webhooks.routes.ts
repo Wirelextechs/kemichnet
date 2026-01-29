@@ -88,10 +88,112 @@ router.post('/wirenet', async (req, res) => {
     }
 });
 
-// Health check for webhook endpoint
-router.get('/wirenet', (req, res) => {
-    res.json({ status: 'WireNet webhook endpoint active', timestamp: new Date() });
+// ============ PAYSTACK WEBHOOK HANDLER ============
+/**
+ * Paystack Webhook
+ * 
+ * Handles 'charge.success' event to confirm payment and trigger fulfillment.
+ * Validates signature using PAYSTACK_SECRET_KEY.
+ */
+import { createHmac } from 'crypto';
+
+router.post('/paystack', async (req, res) => {
+    try {
+        // 1. Validate Signature
+        const secret = process.env.PAYSTACK_SECRET_KEY;
+        if (!secret) {
+            console.error('PAYSTACK_SECRET_KEY not configured');
+            return res.status(500).send('Server Error');
+        }
+
+        const signature = req.headers['x-paystack-signature'];
+        const hash = createHmac('sha512', secret).update(JSON.stringify(req.body)).digest('hex');
+
+        if (signature !== hash) {
+            console.error('Invalid Paystack signature');
+            return res.status(401).send('Invalid signature');
+        }
+
+        // 2. Process Event
+        const { event, data } = req.body;
+
+        if (event === 'charge.success') {
+            const { reference, status } = data;
+
+            if (status !== 'success') {
+                return res.status(200).send('Ignoring non-success status');
+            }
+
+            console.log(`Paystack Webhook: Payment successful for ${reference}`);
+
+            // 3. Find Order
+            const matchingOrders = await db.select().from(orders).where(eq(orders.paymentReference, reference));
+
+            if (matchingOrders.length === 0) {
+                console.error(`Paystack Webhook: Order not found for ref ${reference}`);
+                return res.status(200).send('Order not found');
+            }
+
+            // 4. Update Payment Status (Idempotent check)
+            if (matchingOrders[0].paymentStatus === 'PAID') {
+                console.log(`Paystack Webhook: Order ${reference} already PAID. Skipping.`);
+                return res.status(200).send('Already processed');
+            }
+
+            console.log(`Paystack Webhook: Marking ${matchingOrders.length} orders as PAID and QUEUED`);
+
+            // Update status
+            await db.update(orders)
+                .set({
+                    paymentStatus: 'PAID',
+                    status: 'QUEUED',
+                    updatedAt: new Date()
+                })
+                .where(eq(orders.paymentReference, reference));
+
+            // 5. Trigger Fulfillment (Async)
+            // We duplicate the fulfillment logic from /verify here to be safe
+            import('../services/wirenet.service').then(async ({ placeWireNetOrder }) => {
+                for (const order of matchingOrders) {
+                    try {
+                        console.log(`Paystack Webhook: Triggering fulfillment for order ${order.id}`);
+                        await placeWireNetOrder({
+                            serviceType: order.serviceType,
+                            packageId: order.wirenetPackageId || 'GENERIC_PKG_1',
+                            beneficiaryPhone: order.beneficiaryPhone,
+                            amount: parseFloat(order.amount as string),
+                            paymentReference: order.paymentReference || 'WEBHOOK_REF'
+                        });
+
+                        // Update to PROCESSING
+                        await db.update(orders).set({
+                            status: 'PROCESSING',
+                            supplierReference: 'WEBHOOK_INIT',
+                            updatedAt: new Date()
+                        }).where(eq(orders.id, order.id));
+
+                    } catch (err: any) {
+                        console.error(`Paystack Webhook Fulfillment Failed for Order ${order.id}`, err);
+                        // Don't mark as FAILED yet, leave as QUEUED/PROCESSING for retry or reconciliation
+                    }
+                }
+            });
+        }
+
+        res.status(200).send('Webhook received');
+    } catch (error) {
+        console.error('Paystack webhook error:', error);
+        res.status(500).send('Server Error');
+    }
 });
+
+// Health check for webhook endpoint
+router.get('/paystack', (req, res) => {
+    res.json({ status: 'Paystack webhook endpoint active', timestamp: new Date() });
+});
+
+
+// ============ WIRENET WEBHOOK HANDLER ============
 
 // ============ RECONCILIATION ENDPOINTS ============
 import { reconcileStuckOrders, getStuckOrdersCount } from '../services/reconciliation.service';

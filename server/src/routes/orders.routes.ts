@@ -251,11 +251,16 @@ router.patch('/update-status/:orderId', async (req, res) => {
     }
 
     const { orderId } = req.params;
-    const { status } = req.body;
+    const { status, paymentStatus } = req.body;
 
-    const validStatuses = ['PENDING_PAYMENT', 'PAID', 'PROCESSING', 'FULFILLED', 'FAILED'];
-    if (!validStatuses.includes(status)) {
+    const validStatuses = ['PENDING_PAYMENT', 'PAID', 'QUEUED', 'PROCESSING', 'FULFILLED', 'FAILED'];
+    const validPaymentStatuses = ['PENDING', 'PAID', 'FAILED', 'REFUNDED'];
+
+    if (status && !validStatuses.includes(status)) {
         return res.status(400).json({ message: `Invalid status. Must be one of: ${validStatuses.join(', ')}` });
+    }
+    if (paymentStatus && !validPaymentStatuses.includes(paymentStatus)) {
+        return res.status(400).json({ message: `Invalid payment status. Must be one of: ${validPaymentStatuses.join(', ')}` });
     }
 
     try {
@@ -266,15 +271,17 @@ router.patch('/update-status/:orderId', async (req, res) => {
             return res.status(404).json({ message: "Order not found" });
         }
 
-        const oldStatus = order.status;
+        const updates: any = { updatedAt: new Date() };
+        if (status) updates.status = status;
+        if (paymentStatus) updates.paymentStatus = paymentStatus;
 
         await db.update(orders)
-            .set({ status, updatedAt: new Date() })
+            .set(updates)
             .where(eq(orders.id, parseInt(orderId)));
 
-        console.log(`Admin ${user.email} updated order ${orderId}: ${oldStatus} -> ${status}`);
+        console.log(`Admin ${user.email} updated order ${orderId}: Status(${order.status}->${status || order.status}) Payment(${order.paymentStatus}->${paymentStatus || order.paymentStatus})`);
 
-        res.json({ message: "Order status updated", orderId, oldStatus, newStatus: status });
+        res.json({ message: "Order updated", orderId, updates });
     } catch (error) {
         console.error("Update Status Error", error);
         res.status(500).json({ message: "Server error" });

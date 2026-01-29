@@ -275,13 +275,30 @@ function OrdersTab() {
     }, []);
 
     const handleStatusChange = async (orderId: number, newStatus: string) => {
+        if (!confirm(`Are you sure you want to change order #${orderId} status to ${newStatus}?`)) return;
         setUpdatingId(orderId);
         try {
             await api.patch(`/api/orders/update-status/${orderId}`, { status: newStatus });
             setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: newStatus } : o));
+            showToast('success', 'Fulfillment status updated');
         } catch (error) {
             console.error('Failed to update status', error);
-            alert('Failed to update order status');
+            showToast('error', 'Failed to update order status');
+        } finally {
+            setUpdatingId(null);
+        }
+    };
+
+    const handlePaymentStatusChange = async (orderId: number, newStatus: string) => {
+        if (!confirm(`Are you sure you want to change order #${orderId} PAYMENT status to ${newStatus}? This affects revenue reports.`)) return;
+        setUpdatingId(orderId);
+        try {
+            await api.patch(`/api/orders/update-status/${orderId}`, { paymentStatus: newStatus });
+            setOrders(prev => prev.map(o => o.id === orderId ? { ...o, paymentStatus: newStatus } : o));
+            showToast('success', 'Payment status updated');
+        } catch (error) {
+            console.error('Failed to update payment status', error);
+            showToast('error', 'Failed to update payment status');
         } finally {
             setUpdatingId(null);
         }
@@ -396,14 +413,21 @@ function OrdersTab() {
                                 </td>
                                 <td className="p-4">GHS {order.amount}</td>
                                 <td className="p-4">
-                                    <span className={clsx(
-                                        "px-2 py-1 rounded-full text-xs font-bold",
-                                        order.paymentStatus === 'PAID' ? "bg-green-100 text-green-700" :
-                                            order.paymentStatus === 'FAILED' ? "bg-red-100 text-red-700" :
-                                                "bg-yellow-100 text-yellow-700"
-                                    )}>
-                                        {order.paymentStatus || 'PENDING'}
-                                    </span>
+                                    <select
+                                        value={order.paymentStatus || 'PENDING'}
+                                        onChange={(e) => handlePaymentStatusChange(order.id, e.target.value)}
+                                        className={clsx(
+                                            "px-2 py-1 rounded-full text-xs font-bold border-0 cursor-pointer appearance-none text-center min-w-[80px]",
+                                            order.paymentStatus === 'PAID' ? "bg-green-100 text-green-700 hover:bg-green-200" :
+                                                order.paymentStatus === 'FAILED' ? "bg-red-100 text-red-700 hover:bg-red-200" :
+                                                    "bg-yellow-100 text-yellow-700 hover:bg-yellow-200"
+                                        )}
+                                    >
+                                        <option value="PENDING">PENDING</option>
+                                        <option value="PAID">PAID</option>
+                                        <option value="FAILED">FAILED</option>
+                                        <option value="REFUNDED">REFUNDED</option>
+                                    </select>
                                 </td>
                                 <td className="p-4">
                                     <select
