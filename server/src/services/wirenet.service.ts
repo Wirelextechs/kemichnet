@@ -102,7 +102,7 @@ export const checkWireNetOrderStatus = async (reference: string) => {
     return 'unknown';
 }
 
-export const getWireNetBalance = async (): Promise<{ balance: number; currency: string }> => {
+export const getWireNetBalance = async (): Promise<{ balance: number; apiBalance: number; availableBalance: number; currency: string }> => {
     try {
         const response = await axios.get(`${WIRENET_BASE_URL}/balance`, {
             headers: {
@@ -114,10 +114,19 @@ export const getWireNetBalance = async (): Promise<{ balance: number; currency: 
 
         console.log("WireNet Balance Response:", response.data);
 
-        // Handle different response formats
+        // Handle WireNet response format: { status: 'success', data: { api_balance, available_balance, currency } }
         const data = response.data.data || response.data;
+
+        // api_balance = total wallet balance, available_balance = what can be used right now
+        const apiBalance = parseFloat(data.api_balance || data.balance || data.amount || 0);
+        const availableBalance = parseFloat(data.available_balance || data.api_balance || data.balance || 0);
+
+        console.log(`[WireNet] Parsed balances - API: ${apiBalance}, Available: ${availableBalance}`);
+
         return {
-            balance: parseFloat(data.balance || data.amount || 0),
+            balance: apiBalance,  // Use api_balance as the main balance for checks
+            apiBalance,
+            availableBalance,
             currency: data.currency || 'GHS'
         };
     } catch (error: any) {
