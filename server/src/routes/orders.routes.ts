@@ -29,7 +29,8 @@ router.post('/init', async (req, res) => {
         const newOrder = await db.insert(orders).values({
             userId: user.id,
             serviceType: product.serviceType,
-            status: 'PENDING_PAYMENT', // Updated schema
+            status: 'PENDING_PAYMENT',
+            paymentStatus: 'PENDING', // Separate payment status
             paymentReference,
             wirenetPackageId: product.wirenetPackageId,
             beneficiaryPhone,
@@ -85,6 +86,7 @@ router.post('/bulk-init', async (req, res) => {
                 userId: user.id,
                 serviceType: product.serviceType,
                 status: 'PENDING_PAYMENT',
+                paymentStatus: 'PENDING',
                 paymentReference,
                 wirenetPackageId: product.wirenetPackageId,
                 beneficiaryPhone: item.beneficiaryPhone,
@@ -137,13 +139,17 @@ router.post('/verify', async (req, res) => {
         if (matchingOrders.length === 0) return res.status(404).json({ message: "Order not found" });
 
         // Check if already processed (check first one)
-        if (matchingOrders[0].status !== 'PENDING_PAYMENT') {
+        if (matchingOrders[0].paymentStatus === 'PAID') {
             return res.json({ message: "Orders already processed", count: matchingOrders.length });
         }
 
-        // Update status to PAID
+        // Update status to QUEUED (waiting for wirenet push) and payment to PAID
         await db.update(orders)
-            .set({ status: 'PAID' })
+            .set({
+                status: 'QUEUED',
+                paymentStatus: 'PAID',
+                updatedAt: new Date()
+            })
             .where(eq(orders.paymentReference, reference));
 
         // 3. Trigger Fulfillment for EACH order (Async)
@@ -215,6 +221,7 @@ router.get('/all-orders', async (req, res) => {
             userEmail: users.email,
             serviceType: orders.serviceType,
             status: orders.status,
+            paymentStatus: orders.paymentStatus,
             paymentReference: orders.paymentReference,
             supplierReference: orders.supplierReference,
             wirenetPackageId: orders.wirenetPackageId,
@@ -294,10 +301,12 @@ router.post('/retry/:orderId', async (req, res) => {
             return res.status(404).json({ message: "Order not found" });
         }
 
-        // 2. Only allow retry for PAID orders (not already PROCESSING or FULFILLED)
-        if (order.status !== 'PAID') {
+        // 2. Only allow retry for PAID or QUEUED orders (not already PROCESSING or FULFILLED)
+        // Note: 'QUEUED' means paid but waiting for WireNet (or failed push but reverted to queued)
+        // 'PAID' is legacy status, also allow it.
+        if (order.status !== 'PAID' && order.status !== 'QUEUED') {
             return res.status(400).json({
-                message: `Cannot retry order with status '${order.status}'. Only PAID orders can be retried.`
+                message: `Cannot retry order with status '${order.status}'. Only PAID or QUEUED orders can be retried.`
             });
         }
 

@@ -1,6 +1,6 @@
 import { db } from '../db';
 import { orders } from '../db/schema';
-import { eq, and, sql, lt } from 'drizzle-orm';
+import { eq, and, sql, lt, inArray } from 'drizzle-orm';
 
 /**
  * Reconciliation Service
@@ -41,11 +41,11 @@ export const reconcileStuckOrders = async (
     try {
         const stuckCutoff = new Date(Date.now() - stuckMinutes * 60 * 1000);
 
-        // Find orders stuck in PROCESSING
+        // Find orders stuck in PROCESSING or QUEUED
         const stuckOrders = await db.select()
             .from(orders)
             .where(and(
-                eq(orders.status, 'PROCESSING'),
+                inArray(orders.status, ['PROCESSING', 'QUEUED']),
                 lt(orders.updatedAt, stuckCutoff)
             ));
 
@@ -96,7 +96,7 @@ export const getStuckOrdersCount = async (stuckMinutes: number = 30): Promise<nu
     const result = await db.select({
         count: sql<number>`count(*)`
     }).from(orders).where(and(
-        eq(orders.status, 'PROCESSING'),
+        inArray(orders.status, ['PROCESSING', 'QUEUED']),
         lt(orders.updatedAt, stuckCutoff)
     ));
 

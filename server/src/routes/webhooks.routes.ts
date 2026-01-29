@@ -57,8 +57,10 @@ router.post('/wirenet', async (req, res) => {
             newStatus = 'FULFILLED';
         } else if (upperStatus === 'REFUNDED' || upperStatus === 'FAILED' || upperStatus === 'CANCELLED') {
             newStatus = 'FAILED';
-        } else if (upperStatus === 'PROCESSING' || upperStatus === 'QUEUED' || upperStatus === 'PENDING') {
+        } else if (upperStatus === 'PROCESSING' || upperStatus === 'PENDING') {
             newStatus = 'PROCESSING';
+        } else if (upperStatus === 'QUEUED') {
+            newStatus = 'QUEUED';
         }
 
         // Update order if status changed

@@ -2,7 +2,9 @@ import { pgTable, serial, text, integer, timestamp, boolean, pgEnum, decimal } f
 
 export const roleEnum = pgEnum('role', ['customer', 'admin']);
 export const serviceTypeEnum = pgEnum('service_type', ['MTN_UP2U', 'MTN_EXPRESS', 'AT', 'TELECEL']);
-export const orderStatusEnum = pgEnum('order_status', ['PENDING_PAYMENT', 'PAID', 'PROCESSING', 'FULFILLED', 'FAILED']);
+// Added QUEUED to match WireNet's status
+export const orderStatusEnum = pgEnum('order_status', ['PENDING_PAYMENT', 'PAID', 'QUEUED', 'PROCESSING', 'FULFILLED', 'FAILED']);
+export const paymentStatusEnum = pgEnum('payment_status', ['PENDING', 'PAID', 'FAILED', 'REFUNDED']);
 
 export const users = pgTable('users', {
     id: serial('id').primaryKey(),
@@ -30,7 +32,8 @@ export const orders = pgTable('orders', {
     id: serial('id').primaryKey(),
     userId: integer('user_id').references(() => users.id).notNull(),
     serviceType: serviceTypeEnum('service_type').notNull(),
-    status: orderStatusEnum('status').default('PAID').notNull(),
+    status: orderStatusEnum('status').default('PENDING_PAYMENT').notNull(),
+    paymentStatus: paymentStatusEnum('payment_status').default('PENDING').notNull(), // New column
     paymentReference: text('payment_reference'), // Paystack ref
     supplierReference: text('supplier_reference'), // WireNet ref
     wirenetPackageId: text('wirenet_package_id'), // The package to order on WireNet

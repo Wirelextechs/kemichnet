@@ -10,6 +10,7 @@ interface Order {
     id: number;
     userId: number;
     status: string;
+    paymentStatus: string;
     serviceType: string;
     amount: string;
     createdAt: string;
@@ -371,7 +372,8 @@ function OrdersTab() {
                             <th className="p-4">Phone</th>
                             <th className="p-4">Service</th>
                             <th className="p-4">Amount</th>
-                            <th className="p-4">Status</th>
+                            <th className="p-4">Payment</th>
+                            <th className="p-4">Fulfillment</th>
                             <th className="p-4">Date</th>
                             <th className="p-4">Actions</th>
                         </tr>
@@ -392,6 +394,16 @@ function OrdersTab() {
                                     </span>
                                 </td>
                                 <td className="p-4">GHS {order.amount}</td>
+                                <td className="p-4">
+                                    <span className={clsx(
+                                        "px-2 py-1 rounded-full text-xs font-bold",
+                                        order.paymentStatus === 'PAID' ? "bg-green-100 text-green-700" :
+                                            order.paymentStatus === 'FAILED' ? "bg-red-100 text-red-700" :
+                                                "bg-yellow-100 text-yellow-700"
+                                    )}>
+                                        {order.paymentStatus || 'PENDING'}
+                                    </span>
+                                </td>
                                 <td className="p-4">
                                     <select
                                         value={order.status}
