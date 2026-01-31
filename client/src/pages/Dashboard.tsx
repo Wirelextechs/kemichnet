@@ -97,11 +97,17 @@ export default function Dashboard() {
         setTimeout(() => setToast(null), 5000);
     };
 
+    const [enabledServices, setEnabledServices] = useState<Record<string, boolean>>({
+        'MTN_UP2U': true,
+        'MTN_EXPRESS': true,
+        'AT': true,
+        'TELECEL': true
+    });
+
     useEffect(() => {
         fetchProducts();
         fetchOrders();
-        fetchWhatsappLink();
-        fetchAnnouncement();
+        fetchSettings();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
@@ -119,19 +125,16 @@ export default function Dashboard() {
         } catch (error) { console.error(error); }
     };
 
-    const fetchWhatsappLink = async () => {
+    const fetchSettings = async () => {
         try {
-            const res = await api.get('/api/settings/whatsapp_link');
-            if (res.data?.value) setWhatsappLink(res.data.value);
-        } catch (error) { console.error(error); }
-    };
+            const res = await api.get('/api/settings');
+            const data = res.data;
 
-    const fetchAnnouncement = async () => {
-        try {
-            const res = await api.get('/api/settings/announcement');
-            if (res.data?.value) {
-                const announcementText = res.data.value;
-                // Check if user already dismissed this exact announcement
+            if (data.whatsapp_link) setWhatsappLink(data.whatsapp_link);
+
+            // Announcement Logic
+            if (data.announcement) {
+                const announcementText = data.announcement;
                 const dismissedAnnouncement = localStorage.getItem('dismissed_announcement');
                 if (dismissedAnnouncement !== announcementText) {
                     setAnnouncement(announcementText);
@@ -140,7 +143,23 @@ export default function Dashboard() {
                     setAnnouncementDismissed(true);
                 }
             }
-        } catch (error) { console.error(error); }
+
+            // Service Availability Logic
+            const newEnabledServices: Record<string, boolean> = {
+                'MTN_UP2U': data.service_MTN_UP2U_enabled !== 'false', // Default true if missing
+                'MTN_EXPRESS': data.service_MTN_EXPRESS_enabled !== 'false',
+                'AT': data.service_AT_enabled !== 'false',
+                'TELECEL': data.service_TELECEL_enabled !== 'false'
+            };
+            setEnabledServices(newEnabledServices);
+
+            // If current active tab is disabled, switch to first available
+            if (!newEnabledServices[activeTab]) {
+                const firstAvailable = Object.keys(newEnabledServices).find(k => newEnabledServices[k]);
+                if (firstAvailable) setActiveTab(firstAvailable);
+            }
+
+        } catch (error) { console.error('Error fetching settings', error); }
     };
 
     const dismissAnnouncement = () => {
@@ -397,25 +416,27 @@ export default function Dashboard() {
                 {/* Service Selection (Only for Buying Views) */}
                 {activeView !== 'history' && (
                     <div className="flex gap-4 overflow-x-auto pb-4 no-scrollbar">
-                        {['MTN_UP2U', 'MTN_EXPRESS', 'AT', 'TELECEL'].map(service => {
-                            const btnTheme = getTheme(service);
-                            const isActive = activeTab === service;
-                            return (
-                                <button
-                                    key={service}
-                                    onClick={() => setActiveTab(service)}
-                                    className={clsx(
-                                        "px-6 py-4 rounded-2xl whitespace-nowrap text-sm font-bold transition-all duration-300 border-2 flex items-center gap-2 min-w-[140px] justify-center",
-                                        isActive
-                                            ? `${btnTheme.primary} ${btnTheme.text} ${btnTheme.border} shadow-xl scale-105`
-                                            : "bg-white text-gray-400 border-gray-100 hover:border-gray-200 hover:bg-gray-50"
-                                    )}
-                                >
-                                    <span className={clsx("w-3 h-3 rounded-full", activeTab === service ? "bg-white" : btnTheme.primary)} />
-                                    {service.replace('_', ' ')}
-                                </button>
-                            );
-                        })}
+                        {['MTN_UP2U', 'MTN_EXPRESS', 'AT', 'TELECEL']
+                            .filter(service => enabledServices[service])
+                            .map(service => {
+                                const btnTheme = getTheme(service);
+                                const isActive = activeTab === service;
+                                return (
+                                    <button
+                                        key={service}
+                                        onClick={() => setActiveTab(service)}
+                                        className={clsx(
+                                            "px-6 py-4 rounded-2xl whitespace-nowrap text-sm font-bold transition-all duration-300 border-2 flex items-center gap-2 min-w-[140px] justify-center",
+                                            isActive
+                                                ? `${btnTheme.primary} ${btnTheme.text} ${btnTheme.border} shadow-xl scale-105`
+                                                : "bg-white text-gray-400 border-gray-100 hover:border-gray-200 hover:bg-gray-50"
+                                        )}
+                                    >
+                                        <span className={clsx("w-3 h-3 rounded-full", activeTab === service ? "bg-white" : btnTheme.primary)} />
+                                        {service.replace('_', ' ')}
+                                    </button>
+                                );
+                            })}
                     </div>
                 )}
 

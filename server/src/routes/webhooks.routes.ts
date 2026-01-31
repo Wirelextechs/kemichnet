@@ -29,8 +29,42 @@ router.post('/wirenet', async (req, res) => {
     try {
         const { event, data } = req.body;
 
+        if (event === 'system.settings_update') {
+            console.log('System Settings Update Received:', data);
+
+            // Map WireNet keys to our internal keys
+            // data format: { datagodEnabled: bool, fastnetEnabled: bool, atEnabled: bool, telecelEnabled: bool }
+
+            const updates = [];
+            if (data.datagodEnabled !== undefined) updates.push({ key: 'service_MTN_UP2U_enabled', value: String(data.datagodEnabled) });
+            if (data.fastnetEnabled !== undefined) updates.push({ key: 'service_MTN_EXPRESS_enabled', value: String(data.fastnetEnabled) });
+            if (data.atEnabled !== undefined) updates.push({ key: 'service_AT_enabled', value: String(data.atEnabled) });
+            if (data.telecelEnabled !== undefined) updates.push({ key: 'service_TELECEL_enabled', value: String(data.telecelEnabled) });
+
+            console.log('Updating settings:', updates);
+
+            // Upsert settings
+            import('../db/schema').then(async ({ settings }) => {
+                for (const update of updates) {
+                    await db.insert(settings)
+                        .values({ key: update.key, value: update.value, updatedAt: new Date() })
+                        .onConflictDoUpdate({
+                            target: settings.key,
+                            set: { value: update.value, updatedAt: new Date() }
+                        });
+                }
+            });
+
+            return res.status(200).json({ received: true, action: 'settings_updated' });
+        }
+
         if (!data || !data.payment_reference) {
             console.error('WireNet webhook missing data.payment_reference');
+            // Don't error out if it was a system event we missed above, but we caught that.
+            // If it's not system event and has no ref, THEN error.
+            if (event !== 'order.update') {
+                return res.status(200).json({ received: true, message: 'Ignored unknown event' });
+            }
             return res.status(400).json({ message: 'Missing data.payment_reference' });
         }
 
