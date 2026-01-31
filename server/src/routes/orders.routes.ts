@@ -143,6 +143,26 @@ router.post('/verify', async (req, res) => {
             return res.json({ message: "Orders already processed", count: matchingOrders.length });
         }
 
+        // --- TAMPERING CHECK ---
+        const expectedTotal = matchingOrders.reduce((sum, o) => sum + parseFloat(o.amount as string), 0);
+        const paidAmount = paymentData.data.amount / 100; // Paystack amount is in kobo (base unit)
+
+        // Allow tiny epsilon for float math, but essentially they must match
+        if (Math.abs(expectedTotal - paidAmount) > 0.05) {
+            console.error(`Price Tampering Alert! Ref: ${reference}. Expected: ${expectedTotal}, Paid: ${paidAmount}`);
+            // Mark as FAILED to prevent service delivery
+            await db.update(orders)
+                .set({
+                    status: 'FAILED',
+                    paymentStatus: 'FAILED', // Or separate 'UNDERPAID' if available
+                    updatedAt: new Date()
+                })
+                .where(eq(orders.paymentReference, reference));
+
+            return res.status(400).json({ message: `Payment discrepancy. Expected GHS ${expectedTotal}, Paid GHS ${paidAmount}` });
+        }
+        // -----------------------
+
         // Update status to QUEUED (waiting for wirenet push) and payment to PAID
         await db.update(orders)
             .set({

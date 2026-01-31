@@ -174,6 +174,25 @@ router.post('/paystack', async (req, res) => {
                 return res.status(200).send('Already processed');
             }
 
+            // --- TAMPERING CHECK ---
+            const expectedTotal = matchingOrders.reduce((sum, o) => sum + parseFloat(o.amount as string), 0);
+            const paidAmount = data.amount / 100; // Paystack amount is in kobo
+
+            if (Math.abs(expectedTotal - paidAmount) > 0.05) {
+                console.error(`Paystack Webhook Tampering Alert! Ref: ${reference}. Expected: ${expectedTotal}, Paid: ${paidAmount}`);
+
+                await db.update(orders)
+                    .set({
+                        status: 'FAILED',
+                        paymentStatus: 'FAILED',
+                        updatedAt: new Date()
+                    })
+                    .where(eq(orders.paymentReference, reference));
+
+                return res.status(200).send('Tampering detected'); // Return 200 to stop Paystack retries
+            }
+            // -----------------------
+
             console.log(`Paystack Webhook: Marking ${matchingOrders.length} orders as PAID and QUEUED`);
 
             // Update status
